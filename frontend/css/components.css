@@ -1,0 +1,102 @@
+/* Command bar: the one large, memorable element on the page. */
+.command-bar {
+  margin-top: 2.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.5rem 0.5rem 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+.command-bar:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgb(240 176 87 / 0.22); }
+
+.command-bar input {
+  flex: 1;
+  min-width: 0;
+  height: 3.1rem;
+  background: transparent;
+  border: 0;
+  color: var(--text);
+  font: inherit;
+  font-size: 1.1rem;
+}
+.command-bar input::placeholder { color: var(--muted); opacity: 0.85; }
+.command-bar input:focus { outline: none; }
+
+.command-actions { display: flex; align-items: center; gap: 0.35rem; }
+
+.button {
+  height: 2.75rem;
+  padding: 0 1.15rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, opacity 120ms ease;
+}
+.button[hidden] { display: none; }
+.button.primary { background: var(--accent); color: var(--accent-ink); }
+.button.primary:hover:not(:disabled) { background: #f5c079; }
+.button.quiet { background: transparent; color: var(--muted); }
+.button.quiet:hover:not(:disabled) { background: var(--raised); color: var(--text); }
+.button:disabled { opacity: 0.55; cursor: progress; }
+
+.icon-button {
+  display: grid;
+  place-items: center;
+  width: 2.5rem; height: 2.5rem;
+  background: transparent;
+  color: var(--muted);
+  border: 0;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+.icon-button:hover { background: var(--raised); color: var(--text); }
+
+/* Status in the top bar. State is always spelled out in text, never colour alone. */
+.status { display: flex; align-items: center; gap: 0.5rem; padding: 0 0.5rem; color: var(--muted); font-size: 0.9rem; }
+.status-dot { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--muted); }
+.status[data-state="ok"] .status-dot { background: var(--ok); }
+.status[data-state="warn"] .status-dot { background: var(--warn); }
+.status[data-state="error"] .status-dot { background: var(--bad); }
+
+/* Message area under the input */
+.notice {
+  margin-top: 1rem;
+  padding: 0.15rem 0 0.15rem 0.9rem;
+  border-left: 3px solid var(--line);
+  color: var(--muted);
+  min-height: 1.6rem;
+}
+.notice[data-kind="success"] { border-left-color: var(--ok); color: var(--text); }
+.notice[data-kind="error"] { border-left-color: var(--bad); color: var(--text); }
+.notice[data-kind="busy"] { border-left-color: var(--accent); color: var(--text); }
+
+.history h2 { padding-bottom: 0.9rem; border-bottom: 1px solid var(--line); }
+.empty { padding-top: 1rem; color: var(--muted); max-width: 52ch; }
+
+/* Settings dialog */
+dialog {
+  width: min(28rem, calc(100vw - 2rem));
+  padding: 0;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+}
+dialog::backdrop { background: rgb(10 12 16 / 0.65); }
+.dialog-body { display: grid; gap: 1rem; padding: 1.5rem; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem; }
+
+.dependency-list { list-style: none; padding: 0; display: grid; gap: 0.25rem; }
+.dependency { display: grid; grid-template-columns: 1.5rem 1fr; column-gap: 0.5rem; padding: 0.6rem 0; border-bottom: 1px solid var(--line); }
+.dependency:last-child { border-bottom: 0; }
+.dependency-mark { font-weight: 700; }
+.dependency[data-state="ok"] .dependency-mark { color: var(--ok); }
+.dependency[data-state="missing"] .dependency-mark { color: var(--bad); }
+.dependency-name { font-weight: 600; }
+.dependency-detail { grid-column: 2; color: var(--muted); font-size: 0.9rem; }

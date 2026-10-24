@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="session-token" content="__SESSION_TOKEN__">
+  <title>Personal Media</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+  <link rel="stylesheet" href="/static/css/components.css">
+  <link rel="stylesheet" href="/static/css/responsive.css">
+  <script type="module" src="/static/js/app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#url-input">Skip to the URL field</a>
+
+  <header class="topbar">
+    <span class="brand">Personal Media</span>
+    <div class="topbar-actions">
+      <p class="status" id="status" data-state="checking" role="status">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span id="status-text">Checking backend</span>
+      </p>
+      <button type="button" class="icon-button" id="open-settings" aria-label="Open settings">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="hero" aria-labelledby="hero-title">
+      <h1 id="hero-title">Save media you're allowed to keep.</h1>
+      <p class="lede">Paste a link. Everything is checked and processed on this computer, and nothing goes through a third-party service.</p>
+
+      <form id="url-form" class="command-bar" novalidate>
+        <label class="visually-hidden" for="url-input">Media URL</label>
+        <input id="url-input" name="url" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste a media URL" aria-describedby="notice">
+        <div class="command-actions">
+          <button type="button" class="button quiet" id="paste-button">Paste</button>
+          <button type="button" class="button quiet" id="clear-button" hidden>Clear</button>
+          <button type="submit" class="button primary" id="analyze-button">Analyze</button>
+        </div>
+      </form>
+
+      <div id="notice" class="notice" data-kind="info" aria-live="polite">
+        <p id="notice-text">Paste a media URL to begin.</p>
+      </div>
+    </section>
+
+    <section class="history" aria-labelledby="history-title">
+      <h2 id="history-title">Recent downloads</h2>
+      <p class="empty">Nothing here yet. Finished downloads will appear in this list.</p>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>Only download media that you own or have permission to download.</p>
+  </footer>
+
+  <dialog id="settings-dialog" aria-labelledby="settings-title">
+    <form method="dialog" class="dialog-body">
+      <h2 id="settings-title">Settings</h2>
+      <h3>Dependencies</h3>
+      <ul id="dependency-list" class="dependency-list" aria-live="polite">
+        <li class="dependency" data-state="checking"><span class="dependency-name">Checking…</span></li>
+      </ul>
+      <div class="dialog-actions">
+        <button class="button quiet" id="refresh-dependencies" type="button">Check again</button>
+        <button class="button primary" value="close">Close</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>

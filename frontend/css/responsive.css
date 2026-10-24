@@ -1,0 +1,12 @@
+@media (max-width: 40rem) {
+  .page { padding: 2rem 1.1rem 2.5rem; gap: 3rem; }
+  .topbar { padding: 0.75rem 1rem; }
+  .command-bar { flex-direction: column; align-items: stretch; padding: 0.75rem; }
+  .command-bar input { padding: 0 0.35rem; }
+  .command-actions { justify-content: flex-end; }
+  .status { font-size: 0.82rem; padding: 0; }
+}
+
+@media (max-width: 26rem) {
+  .command-actions .button { flex: 1; }
+}

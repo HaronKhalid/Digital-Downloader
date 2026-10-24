@@ -18,8 +18,9 @@ Browser UI (vanilla JS, same origin)
         │  HTTP/JSON + X-Session-Token
         ▼
 FastAPI  ── LocalOnlyMiddleware (Host / Origin / token / security headers)
-        ├── routes:    health, system (dependencies), media (validate)
-        ├── services:  ffmpeg_service (detection), file_service (path safety)
+        ├── routes:    health, system (dependencies), media (analyze)
+        ├── services:  source_service -> sources/{direct, ytdlp}   (one adapter per source type)
+        │              http_client (SSRF-safe outbound HTTP), ffmpeg_service, file_service
         ├── utils:     urls (validation + SSRF), filenames (sanitizing)
         └── core:      config, logging (JSON + redaction), errors, security
 ```
@@ -33,20 +34,31 @@ The backend serves the frontend itself (`/` and `/static/*`), so browser and API
 | Per-run session token, Host and Origin checks on the API | `127.0.0.1` binding alone does not stop other websites in the user's browser from calling the API, and DNS rebinding bypasses it. |
 | Token is injected into `index.html` by the server | Cross-origin pages cannot read it. |
 | Dependency status at `/api/system/dependencies` | Keeps `/api/health` open and minimal; everything else requires the token. |
-| `POST /api/media/validate` as an interim endpoint | Exercises the security core end to end now. Phase 2 grows it into `/api/media/analyze`. |
+| `POST /api/media/analyze` (the interim `/validate` was removed) | Single entry point; returns normalized metadata only. |
+| yt-dlp as a pinned **subprocess**, not a library | Crash isolation, easy cancellation, no extractor code inside the server process. Flags verified against the pinned version. |
+| Initial sources: direct media-file links + `archive.org` | Sources that permit downloading, so the pipeline can be tested with authorized content. |
+| Own `SafeHttpClient` for direct links and thumbnails | Pinned IPs, per-hop revalidation, TLS verified against the hostname, size/time/redirect limits, no https->http downgrade. |
+| Thumbnails embedded as verified `data:` images | The browser never contacts a third-party host (local-first), and CSP `img-src` is `'self' data:`. SVG is refused; type is sniffed from content. |
+| DRM-flagged formats filtered out at normalization | Legal boundary: protected streams are never offered. |
+| Collections/playlists and live streams are refused for now | Single-item flow first; batch is a later, separate feature. |
 | Interactive API docs disabled | They load scripts from a CDN, which the CSP forbids, and expose structure unnecessarily. |
 | `ANALYZING` / `READY` not job states (proposal) | Analysis happens before a job exists. Decide in Phase 4: either drop them from jobs or fold analysis into job creation. |
 | Settings are environment-based for now | Settings API and persistence arrive with history (Phase 6). |
 | No `LICENSE` file | License choice belongs to the project owner. |
 
-## Source layer (open decision, needed for Phase 2)
+## Source layer
 
-Nothing yet extracts metadata or media. The likely choice is `yt-dlp`, which is also the largest dependency and attack surface. Before Phase 2, decide:
+```text
+SourceService.detect(url) -> first adapter whose can_handle(url) is true
+    DirectFileSource   extension in the output allow-list; HEAD (or 1-byte Range GET) via SafeHttpClient
+    YtDlpSource        host in ALLOWED_SOURCE_DOMAINS; yt-dlp --dump-single-json as a subprocess
+```
 
-1. Library or subprocess use (subprocess with argument arrays isolates crashes and is easier to cancel).
-2. Pin the version and plan frequent updates.
-3. Initial in-scope sources. Suggested: direct HTTP(S) media-file URLs plus one or two providers that permit downloading, so the pipeline can be tested end to end with authorized content.
-4. Because a third-party extractor makes its own network requests, our SSRF controls only cover the initial URL unless requests are made through our own pinned-IP client. Prefer an allow-list of domains for extractor-handled sources.
+Adapters return `MediaInfo` / `MediaFormat` (see `models/media.py`); the UI never sees source-specific data. `download()` is added to the adapter interface in Phase 4.
+
+**Known limit:** yt-dlp makes its own network requests, so only the *initial* URL goes through our SSRF validation and the extractor's follow-up requests are not pinned. This is why it is restricted to an allow-list of domains rather than "any site".
+
+**Format ids** reaching a future download step are validated against a strict pattern, and Phase 4 must additionally require the id to be one the analysis returned.
 
 ## Roadmap
 
@@ -54,9 +66,9 @@ Nothing yet extracts metadata or media. The likely choice is `yt-dlp`, which is 
 | --- | --- |
 | 0 Discovery | Done |
 | 1 Foundation, security core | Done |
-| 2 URL + source layer | Next (blocked on source decision) |
-| 3 Media UI | |
-| 4 Download engine, jobs | |
+| 2 URL + source layer | Done (verified with fixtures and the real extractor's failure path; **not yet against live sites**) |
+| 3 Media UI | Done (verified in headless Chromium) |
+| 4 Download engine, jobs | Next |
 | 5 FFmpeg processing | |
 | 6 History (SQLite) | |
 | 7 Security hardening | |

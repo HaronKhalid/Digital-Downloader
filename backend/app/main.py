@@ -16,13 +16,14 @@ from .core.config import Settings, get_settings
 from .core.errors import register_exception_handlers
 from .core.logging import configure_logging
 from .core.security import LocalOnlyMiddleware
+from .services.source_service import SourceService, build_source_service
 from .services.file_service import ensure_runtime_directories, validate_output_directory
 
 logger = logging.getLogger("app.main")
 TOKEN_PLACEHOLDER = "__SESSION_TOKEN__"
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, source_service: SourceService | None = None) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings.log_level)
     session_token = secrets.token_urlsafe(32)
@@ -49,6 +50,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = settings
     app.state.session_token = session_token
+    app.state.source_service = source_service or build_source_service(settings)
 
     app.add_middleware(
         LocalOnlyMiddleware,

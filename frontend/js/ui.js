@@ -16,6 +16,16 @@ export const els = {
   settings: $("settings-dialog"),
   dependencyList: $("dependency-list"),
   refreshDependencies: $("refresh-dependencies"),
+  card: $("media-card"),
+  thumbImg: $("media-thumb-img"),
+  thumbFallback: $("media-thumb-fallback"),
+  title: $("media-title"),
+  source: $("media-source"),
+  duration: $("media-duration"),
+  size: $("media-size"),
+  quality: $("quality-select"),
+  format: $("format-select"),
+  download: $("download-button"),
 };
 
 /** kind: "info" | "busy" | "success" | "error" */
@@ -69,6 +79,11 @@ export function renderDependencies(deps) {
     dependencyItem("Backend", deps.backend.ok, `Version ${deps.backend.version}`),
     dependencyItem("Python", deps.python.ok, `Version ${deps.python.version}`),
     dependencyItem("FFmpeg", deps.ffmpeg.ok, deps.ffmpeg.ok ? `Version ${deps.ffmpeg.version}` : deps.ffmpeg.message),
+    dependencyItem(
+      "Media extractor (yt-dlp)",
+      deps.extractor.ok,
+      deps.extractor.ok ? `Version ${deps.extractor.version ?? "unknown"}` : deps.extractor.message,
+    ),
   );
 }
 

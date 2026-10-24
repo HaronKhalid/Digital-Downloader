@@ -1,4 +1,5 @@
 import { api, ApiError } from "./api.js";
+import { hideMedia, renderMedia } from "./media.js";
 import {
   els,
   renderDependencies,
@@ -31,21 +32,19 @@ async function analyze(event) {
   event.preventDefault();
   const problem = checkLocally(els.input.value);
   if (problem) {
+    hideMedia();
     showNotice(problem === EMPTY_MESSAGE ? "info" : "error", problem);
     els.input.focus();
     return;
   }
 
+  hideMedia();
   setBusy(true);
   showNotice("busy", "Analyzing media…");
   try {
-    // Phase 1: the backend only validates the address. Phase 2 replaces this with
-    // /api/media/analyze, which returns title, thumbnail and formats.
-    const result = await api.validateUrl(els.input.value);
-    showNotice(
-      "success",
-      `${result.host} passed the safety checks. Reading its media details comes in the next build phase.`,
-    );
+    const analysis = await api.analyze(els.input.value);
+    renderMedia(analysis);
+    showNotice("success", "Choose a format and start processing.");
   } catch (error) {
     showNotice("error", error instanceof ApiError ? error.message : "Something went wrong. Try again.");
   } finally {
@@ -55,11 +54,12 @@ async function analyze(event) {
 
 async function pasteFromClipboard() {
   try {
-    const text = await navigator.clipboard.readText();
-    els.input.value = text.trim();
+    const text = (await navigator.clipboard.readText()).trim();
+    els.input.value = text;
+    hideMedia();
     syncClearButton();
     els.input.focus();
-    showNotice("info", text.trim() ? "Press Analyze to check this link." : "The clipboard is empty.");
+    showNotice("info", text ? "Press Analyze to check this link." : "The clipboard is empty.");
   } catch {
     showNotice("error", "The browser blocked clipboard access. Paste with Ctrl+V instead.");
     els.input.focus();
@@ -68,6 +68,7 @@ async function pasteFromClipboard() {
 
 function clearInput() {
   els.input.value = "";
+  hideMedia();
   syncClearButton();
   showNotice("info", EMPTY_MESSAGE);
   els.input.focus();
@@ -77,11 +78,9 @@ async function refreshDependencies() {
   try {
     const deps = await api.dependencies();
     renderDependencies(deps);
-    if (deps.ffmpeg.ok) {
-      setStatus("ok", `Ready · FFmpeg ${deps.ffmpeg.version}`);
-    } else {
-      setStatus("warn", "FFmpeg not found");
-    }
+    if (!deps.ffmpeg.ok) setStatus("warn", "FFmpeg not found");
+    else if (!deps.extractor.ok) setStatus("warn", "Media extractor not installed");
+    else setStatus("ok", `Ready · FFmpeg ${deps.ffmpeg.version.split("-")[0]}`);
   } catch (error) {
     const message = error instanceof ApiError ? error.message : "Could not check dependencies.";
     renderDependencyError(message);
@@ -93,7 +92,10 @@ async function start() {
   els.form.addEventListener("submit", analyze);
   els.paste.addEventListener("click", pasteFromClipboard);
   els.clear.addEventListener("click", clearInput);
-  els.input.addEventListener("input", syncClearButton);
+  els.input.addEventListener("input", () => {
+    hideMedia(); // the shown result no longer matches what is typed
+    syncClearButton();
+  });
   els.openSettings.addEventListener("click", () => {
     els.settings.showModal();
     refreshDependencies();

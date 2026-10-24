@@ -100,3 +100,54 @@ dialog::backdrop { background: rgb(10 12 16 / 0.65); }
 .dependency[data-state="missing"] .dependency-mark { color: var(--bad); }
 .dependency-name { font-weight: 600; }
 .dependency-detail { grid-column: 2; color: var(--muted); font-size: 0.9rem; }
+
+/* Media card */
+.media-card {
+  display: grid;
+  grid-template-columns: minmax(0, 15rem) minmax(0, 1fr);
+  gap: 1.5rem;
+  padding: 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+}
+.media-card:not([hidden]) { animation: card-in 180ms ease-out; }
+@keyframes card-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+.media-thumb {
+  position: relative;
+  align-self: start;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: var(--raised);
+  border-radius: 10px;
+}
+.media-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.thumb-fallback { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-weight: 600; }
+.media-thumb img[hidden], .thumb-fallback[hidden] { display: none; }
+
+.media-body { display: grid; gap: 1.1rem; min-width: 0; align-content: start; }
+.media-body h2 { font-size: 1.35rem; line-height: 1.25; overflow-wrap: anywhere; }
+
+.facts { display: flex; flex-wrap: wrap; gap: 0.5rem 2rem; margin: 0; }
+.facts dt { color: var(--muted); font-size: 0.85rem; }
+.facts dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+
+.choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 0.9rem; }
+.field { display: grid; gap: 0.35rem; }
+.field label { color: var(--muted); font-size: 0.85rem; }
+.field select {
+  height: 2.75rem;
+  padding: 0 0.75rem;
+  background: var(--raised);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  font: inherit;
+  max-width: 100%;
+}
+.field select:hover { border-color: var(--muted); }
+
+.media-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem; }
+.hint { color: var(--muted); font-size: 0.9rem; }
+.button:disabled:not([aria-busy]) { cursor: not-allowed; }

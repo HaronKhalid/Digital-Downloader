@@ -50,5 +50,5 @@ async function request(method, path, body) {
 export const api = {
   health: () => request("GET", "/api/health"),
   dependencies: () => request("GET", "/api/system/dependencies"),
-  validateUrl: (url) => request("POST", "/api/media/validate", { url }),
+  analyze: (url) => request("POST", "/api/media/analyze", { url }),
 };

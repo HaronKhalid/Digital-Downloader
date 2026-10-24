@@ -3,7 +3,8 @@
 ## Commands
 
 ```powershell
-python -m pytest                       # all tests
+python -m pytest                       # all tests (offline, ~3 s)
+python e2e/server.py & python e2e/run.py   # optional browser checks (see e2e/README.md)
 python -m pytest backend/tests/test_urls.py -q
 uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
 ```

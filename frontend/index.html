@@ -50,6 +50,35 @@
       </div>
     </section>
 
+    <section id="media-card" class="media-card" aria-labelledby="media-title" hidden>
+      <div class="media-thumb">
+        <img id="media-thumb-img" alt="" hidden>
+        <span id="media-thumb-fallback" class="thumb-fallback">Video</span>
+      </div>
+      <div class="media-body">
+        <h2 id="media-title"></h2>
+        <dl class="facts">
+          <div><dt>Source</dt><dd id="media-source"></dd></div>
+          <div><dt>Duration</dt><dd id="media-duration"></dd></div>
+          <div><dt>Size</dt><dd id="media-size"></dd></div>
+        </dl>
+        <div class="choices">
+          <div class="field">
+            <label for="quality-select">Quality</label>
+            <select id="quality-select"></select>
+          </div>
+          <div class="field">
+            <label for="format-select">Format</label>
+            <select id="format-select"></select>
+          </div>
+        </div>
+        <div class="media-actions">
+          <button type="button" class="button primary" id="download-button" disabled aria-describedby="download-hint">Download</button>
+          <p class="hint" id="download-hint">Downloading is added in the next build phase.</p>
+        </div>
+      </div>
+    </section>
+
     <section class="history" aria-labelledby="history-title">
       <h2 id="history-title">Recent downloads</h2>
       <p class="empty">Nothing here yet. Finished downloads will appear in this list.</p>

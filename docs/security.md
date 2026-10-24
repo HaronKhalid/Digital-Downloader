@@ -14,17 +14,23 @@ The backend treats every URL, title, filename and metadata field as untrusted in
 | Job interference | Per-job temp dir named from a strictly canonical UUID; deletion only strictly inside the temp root | `test_security.py` |
 | Command injection | No shell execution anywhere (enforced by a test that scans the code); subprocesses use argument lists, a timeout and a minimal environment | `test_security.py` |
 | XSS from remote metadata | Frontend only uses `textContent` (enforced by a test); strict CSP with no inline scripts or styles | `test_security.py`, `test_api.py` |
+| SSRF / DNS rebinding in our own outbound requests | `SafeHttpClient`: connects only to validated, pinned IPs; every redirect hop re-validated; TLS verified against the hostname while connected to the pinned IP (tested with a real local TLS server); https->http downgrade refused; GET/HEAD only; size, time and redirect limits; proxy settings ignored | `test_http_client.py` |
+| Command injection via the extractor | yt-dlp runs as an argument list with `--ignore-config --no-plugin-dirs --no-exec`, the URL placed after `--`, minimal environment, timeout, stdin closed; domain allow-list uses exact/subdomain matching | `test_sources.py` |
+| Hostile extractor output | Output size capped; JSON normalized field by field; format ids and extensions must match strict patterns; non-https thumbnails dropped; DRM-flagged, storyboard and unknown-protocol formats removed; raw extractor errors are mapped to categories and never shown | `test_sources.py` |
+| Malicious thumbnails | Fetched through `SafeHttpClient`, size-capped, type sniffed from content (SVG/HTML refused), embedded as `data:`; CSP forbids remote images | `test_sources.py`, `test_api.py` |
 | Sensitive data in logs | Structured logs emit only allow-listed fields; URLs in messages and exceptions are redacted to scheme/host/path | `test_urls.py` |
 | Stack traces to the user | Global handlers return `{"error": {"code", "message"}}` only | `test_api.py` |
 
-The suite was mutation-checked: 13 deliberate regressions of these controls were each caught by at least one test.
+The suite was mutation-checked: 27 deliberate regressions of these controls (13 in Phase 1, 14 in Phase 2) were each caught by at least one test. A headless-browser run (`e2e/`) confirms that a hostile title (`<img onerror=...>`) renders as literal text and executes nothing.
 
 ## Residual risks and notes
 
 - **Uvicorn can be started with a different `--host`.** Settings enforce loopback, but the CLI flag is outside the app's control. The Host-header check still rejects foreign hostnames, but always use `scripts\start.ps1`.
 - **Uvicorn's access log prints request lines.** URLs currently travel in POST bodies, not query strings, so they are not logged. Keep it that way.
-- **Third-party extractors (Phase 2)** will make their own requests; see the source-layer decision in `architecture.md`.
-- **Thumbnails** will load from remote hosts (`img-src https:`). A local thumbnail proxy through the validated fetch path is preferable and should be considered in Phase 3.
+- **yt-dlp's own requests are not pinned.** Only the first URL passes through our validation, so it is limited to allow-listed domains. Do not add a domain you don't trust.
+- **The extractor was not run against live sites during development** (no network in the build sandbox). Parsing is tested with fixtures shaped like yt-dlp output and the real subprocess's failure path; run `scripts/analyze_url.py` on a real link to confirm.
+- **Direct links to any public host are allowed** (extension-based), protected by `SafeHttpClient`; the host sees your IP when you analyze it, as with any download.
+- **yt-dlp needs regular updates**; an old pin will silently stop working on sites that change.
 - **Filesystem permissions, process cleanup and dependency review** are Phase 7 items.
 - **PowerShell scripts** have not been executed on Windows yet.
 

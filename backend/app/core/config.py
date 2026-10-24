@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -10,6 +11,7 @@ from typing import Mapping
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+_DOMAIN = re.compile(r"^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$")
 
 
 class ConfigError(RuntimeError):
@@ -29,6 +31,7 @@ class Settings:
     log_level: str
     allowed_ports: frozenset[int]
     cors_origins: tuple[str, ...]
+    source_domains: frozenset[str]
 
     @classmethod
     def load(cls, env: Mapping[str, str] | None = None) -> "Settings":
@@ -54,6 +57,15 @@ class Settings:
         if "*" in origins:
             raise ConfigError("CORS_ORIGINS must not contain a wildcard.")
 
+        domains = frozenset(
+            d.strip().lower().lstrip(".")
+            for d in env.get("ALLOWED_SOURCE_DOMAINS", "archive.org").split(",")
+            if d.strip()
+        )
+        for domain in domains:
+            if not _DOMAIN.match(domain):
+                raise ConfigError(f"ALLOWED_SOURCE_DOMAINS contains an invalid domain: {domain!r}")
+
         data = REPO_ROOT / "data"
         return cls(
             app_env=env.get("APP_ENV", "development").strip().lower(),
@@ -69,6 +81,7 @@ class Settings:
             log_level=env.get("LOG_LEVEL", "INFO").strip().upper(),
             allowed_ports=frozenset({80, 443}),
             cors_origins=origins,
+            source_domains=domains,
         )
 
 

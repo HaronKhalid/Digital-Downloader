@@ -24,7 +24,7 @@ SESSION_HEADER = "x-session-token"
 PUBLIC_API_PATHS = frozenset({"/api/health"})
 
 CSP = (
-    "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: https:; "
+    "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
     "connect-src 'self'; font-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
 )
 SECURITY_HEADERS = {

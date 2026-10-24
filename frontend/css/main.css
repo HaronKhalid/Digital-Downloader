@@ -22,6 +22,9 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
+/* Author display rules must never override the hidden attribute. */
+[hidden] { display: none !important; }
+
 html { -webkit-text-size-adjust: 100%; }
 
 body {
@@ -72,7 +75,7 @@ h3 { font-size: 0.95rem; font-weight: 600; color: var(--muted); }
   border-bottom: 1px solid var(--line);
 }
 
-.brand { font-family: var(--font-display); font-weight: 650; letter-spacing: -0.01em; }
+.brand { font-family: var(--font-display); font-weight: 650; letter-spacing: -0.01em; white-space: nowrap; }
 .topbar-actions { display: flex; align-items: center; gap: 0.5rem; }
 
 .footer { padding: 1.25rem 1.5rem 1.75rem; color: var(--muted); font-size: 0.875rem; text-align: center; }

@@ -2,3 +2,5 @@
 fastapi==0.162.0
 uvicorn==0.54.0
 pydantic==2.14.1
+# Media extractor, run as a subprocess. Update often: sites change and old versions break.
+yt-dlp==2026.10.21

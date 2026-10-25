@@ -32,6 +32,7 @@ class Settings:
     allowed_ports: frozenset[int]
     cors_origins: tuple[str, ...]
     source_domains: frozenset[str]
+    max_download_bytes: int
 
     @classmethod
     def load(cls, env: Mapping[str, str] | None = None) -> "Settings":
@@ -46,10 +47,13 @@ class Settings:
         try:
             port = int(env.get("PORT", "8000"))
             max_jobs = int(env.get("MAX_PARALLEL_JOBS", "1"))
+            max_gb = int(env.get("MAX_DOWNLOAD_GB", "20"))
         except ValueError as exc:
             raise ConfigError("PORT and MAX_PARALLEL_JOBS must be integers.") from exc
         if not 1024 <= port <= 65535:
             raise ConfigError("PORT must be between 1024 and 65535.")
+        if not 1 <= max_gb <= 500:
+            raise ConfigError("MAX_DOWNLOAD_GB must be between 1 and 500.")
         if not 1 <= max_jobs <= 4:
             raise ConfigError("MAX_PARALLEL_JOBS must be between 1 and 4.")
 
@@ -82,6 +86,7 @@ class Settings:
             allowed_ports=frozenset({80, 443}),
             cors_origins=origins,
             source_domains=domains,
+            max_download_bytes=max_gb * 1024**3,
         )
 
 

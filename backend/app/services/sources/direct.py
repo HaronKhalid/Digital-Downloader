@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 import re
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from urllib.parse import unquote, urlsplit
 
 from ...core.errors import AppError, ErrorCode
 from ...models.media import MediaFormat, MediaInfo
 from ...utils.filenames import ALLOWED_OUTPUT_EXTENSIONS
 from ...utils.urls import ValidatedURL
-from ..http_client import SafeHttpClient
-from .base import MediaSource
+from ..http_client import SafeHttpClient, error_for_status
+from .base import DownloadContext, MediaSource
 
 AUDIO_EXTENSIONS = frozenset({"mp3", "m4a", "aac", "opus", "ogg", "flac", "wav"})
 _OK_CONTENT_TYPES = ("video/", "audio/")
@@ -42,16 +42,8 @@ class DirectFileSource(MediaSource):
             # Some servers refuse HEAD. Ask for one byte instead; the body is never read.
             response = self._client.request("GET", url.url, headers={"Range": "bytes=0-0"})
 
-        if response.status in (401, 403):
-            raise AppError(
-                ErrorCode.MEDIA_NOT_AVAILABLE,
-                "This file needs a sign-in or special permission, so it can't be downloaded here.",
-                reason=f"http_{response.status}",
-            )
-        if response.status in (404, 410):
-            raise AppError(ErrorCode.MEDIA_NOT_AVAILABLE, "That file is no longer available at this address.", reason=f"http_{response.status}")
         if response.status not in (200, 206):
-            raise AppError(ErrorCode.SOURCE_UNAVAILABLE, "The website couldn't provide that file right now.", reason=f"http_{response.status}")
+            raise error_for_status(response.status)
 
         content_type = response.headers.get("content-type", "").split(";")[0].strip().lower()
         if content_type and not (content_type.startswith(_OK_CONTENT_TYPES) or content_type in _OK_EXACT):
@@ -91,3 +83,12 @@ class DirectFileSource(MediaSource):
             return int(match.group(1)) if match else None
         length = headers.get("content-length", "")
         return int(length) if length.isdigit() else None
+
+    def download(self, url: ValidatedURL, fmt: MediaFormat, dest_dir: Path, part: int, ctx: DownloadContext) -> Path:
+        if fmt.id != "direct" or fmt.container not in ALLOWED_OUTPUT_EXTENSIONS:
+            raise AppError(ErrorCode.FORMAT_NOT_AVAILABLE, "The selected format is no longer available.", reason="bad_format")
+        dest = dest_dir / f"part{part}.{fmt.container}"  # generated name; the URL never influences the path
+        self._client.download_file(
+            url.url, dest, max_bytes=ctx.max_bytes, cancel=ctx.cancel, on_progress=ctx.on_progress
+        )
+        return dest

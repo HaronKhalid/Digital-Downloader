@@ -2,7 +2,7 @@
 
 A local-first utility for analyzing and downloading media that you own or are authorized to download. It runs entirely on your computer: a FastAPI backend bound to `127.0.0.1` and a browser UI served by that same backend.
 
-> **Status: Phases 1-3 complete.** You can paste a link, and the app validates it, detects the source, and shows title, thumbnail, duration and available formats. **Downloading, jobs, history and FFmpeg processing are not implemented yet** (the Download button is intentionally disabled). See `docs/architecture.md` for the roadmap.
+> **Status: Phases 1-4 complete.** Paste a link, check what is available, pick quality/format, and download. You get live progress, cancel, "Save as" conversion through FFmpeg (merge video+audio, remux, audio extraction), and Open file / Open folder. **Not yet built:** persistent download history (Phase 6), resuming interrupted downloads, settings screen, packaging. See `docs/architecture.md`.
 >
 > **Supported sources today:** direct links to media files (`.mp4`, `.mp3`, ...) and `archive.org` pages. Other sites are refused with a clear message. Extend `ALLOWED_SOURCE_DOMAINS` in `.env` only for sites that permit downloading.
 
@@ -40,6 +40,10 @@ uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 
 Always pass `--host 127.0.0.1`. The application refuses to start if `HOST` in the environment is not a loopback address.
 
+## Where files go
+
+Finished files are saved to `~/Downloads/PersonalMedia` (override with `OUTPUT_DIRECTORY` in `.env`). Work in progress lives in `data/temp/job-<id>/` and is deleted when a job ends, however it ends. Leftovers from a crash are removed at the next start. A file with an existing name is never overwritten (`Name (1).mp4`).
+
 ## Tests
 
 ```powershell
@@ -57,6 +61,7 @@ python -m pytest
 | Port already in use | Set `PORT` in `.env` and restart. |
 | "Media extractor not installed" | Re-run `scripts\setup.ps1` (installs yt-dlp). |
 | A supported site stops working | Sites change often. Update yt-dlp: `pip install -U yt-dlp`, then update the pin in `backend/requirements.txt`. |
+| "Not enough disk space" | Free up space on the drive that holds `data/temp` and your output folder. |
 | "This website isn't supported yet" | Only direct file links and allow-listed sites work. See the status note above. |
 
 ## Documentation

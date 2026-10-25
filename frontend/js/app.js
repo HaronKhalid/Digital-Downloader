@@ -1,4 +1,5 @@
 import { api, ApiError } from "./api.js";
+import { initJobs, resumeIfRunning } from "./jobs.js";
 import { hideMedia, renderMedia } from "./media.js";
 import {
   els,
@@ -101,6 +102,8 @@ async function start() {
     refreshDependencies();
   });
   els.refreshDependencies.addEventListener("click", refreshDependencies);
+  initJobs();
+  document.addEventListener("pm:new-download", clearInput);
 
   try {
     await api.health();
@@ -110,6 +113,7 @@ async function start() {
     return;
   }
   await refreshDependencies();
+  await resumeIfRunning();
   els.input.focus();
 }
 

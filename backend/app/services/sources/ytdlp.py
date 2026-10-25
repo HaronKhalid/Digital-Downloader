@@ -18,13 +18,16 @@ import logging
 import re
 import subprocess
 import sys
+from pathlib import Path
 from typing import Callable
 
 from ...core.errors import AppError, ErrorCode
 from ...models.media import MediaFormat, MediaInfo
 from ...utils.urls import ValidatedURL, redact_text
 from ..ffmpeg_service import controlled_env
-from .base import MediaSource
+from ..http_client import TransferProgress
+from ..process_utils import ProcessTimeout, run_controlled
+from .base import DownloadContext, MediaSource
 
 logger = logging.getLogger("app.ytdlp")
 
@@ -197,10 +200,18 @@ class YtDlpSource(MediaSource):
     id = "ytdlp"
     label = "Web media"
 
-    def __init__(self, domains: frozenset[str], *, runner: Runner | None = None, timeout: float = 60.0) -> None:
+    def __init__(
+        self,
+        domains: frozenset[str],
+        *,
+        runner: Runner | None = None,
+        timeout: float = 60.0,
+        base_command: list[str] | None = None,
+    ) -> None:
         self._domains = frozenset(d.lower() for d in domains)
         self._runner = runner or default_runner
         self._timeout = timeout
+        self._base_command = list(base_command) if base_command else [sys.executable, "-m", "yt_dlp"]
 
     def can_handle(self, url: ValidatedURL) -> bool:
         host = url.host
@@ -209,7 +220,7 @@ class YtDlpSource(MediaSource):
     def build_command(self, url: str) -> list[str]:
         # Argument list only. "--" ends option parsing so the URL can never be read as a flag.
         return [
-            sys.executable, "-m", "yt_dlp",
+            *self._base_command,
             "--ignore-config", "--no-plugin-dirs", "--no-cache-dir", "--no-cookies", "--no-exec",
             "--dump-single-json", "--no-playlist", "--no-warnings", "--no-progress",
             "--socket-timeout", "15", "--retries", "1", "--extractor-retries", "1",
@@ -235,3 +246,111 @@ class YtDlpSource(MediaSource):
         except ValueError:
             raise AppError(ErrorCode.SOURCE_UNAVAILABLE, "The website returned data in an unexpected format.", reason="bad_json") from None
         return normalize_info(info, source_id=self.id, source_label=self.label, url=url.url)
+
+    # ------------------------------------------------------------------ download
+
+    def build_download_command(self, url: str, fmt_id: str, dest_dir: Path, part: int, ctx: DownloadContext) -> list[str]:
+        if not _FORMAT_ID.match(fmt_id):  # defence in depth: ids are validated at analysis time too
+            raise AppError(ErrorCode.FORMAT_NOT_AVAILABLE, "The selected format is no longer available.", reason="bad_format_id")
+        # The output path is a yt-dlp *template*, so a literal "%" in our own directory must be escaped.
+        template = str(dest_dir / f"part{part}").replace("%", "%%") + ".%(ext)s"
+        command = [
+            *self._base_command,
+            "--ignore-config", "--no-plugin-dirs", "--no-cache-dir", "--no-cookies", "--no-exec",
+            "--no-playlist", "--no-warnings", "--no-mtime", "--newline",
+            "--socket-timeout", "15", "--retries", "2", "--fragment-retries", "2",
+            "--max-filesize", str(int(ctx.max_bytes)),
+            "--progress-template", PROGRESS_TEMPLATE,
+            "-f", fmt_id,
+            "-o", template,
+        ]
+        if ctx.ffmpeg_location:
+            command += ["--ffmpeg-location", ctx.ffmpeg_location]
+        return [*command, "--", url]
+
+    def download(self, url: ValidatedURL, fmt: MediaFormat, dest_dir: Path, part: int, ctx: DownloadContext) -> Path:
+        available, _, message = detect_ytdlp()
+        if not available:
+            raise AppError(ErrorCode.SOURCE_UNAVAILABLE, message or INSTALL_HINT, reason="ytdlp_missing")
+
+        def on_line(line: str) -> None:
+            progress = parse_progress_line(line)
+            if progress is not None:
+                ctx.on_progress(progress)
+
+        env = controlled_env()
+        env.update({"PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1"})
+        try:
+            result = run_controlled(
+                self.build_download_command(url.url, fmt.id, dest_dir, part, ctx),
+                env=env, cancel=ctx.cancel, timeout=ctx.timeout, on_line=on_line,
+            )
+        except ProcessTimeout:
+            raise AppError(ErrorCode.TIMEOUT, "The download took too long and was stopped.", reason="process_timeout") from None
+        except OSError:
+            raise AppError(ErrorCode.SOURCE_UNAVAILABLE, INSTALL_HINT, reason="ytdlp_spawn_failed") from None
+
+        text = "\n".join(result.tail)
+        if result.returncode != 0:
+            logger.warning(
+                "download failed",
+                extra={"operation": "ytdlp_download", "status": "failed", "reason": redact_text(text)[-300:]},
+            )
+            mapped = map_error(text)
+            if mapped.reason == "extractor_failed":
+                mapped = AppError(ErrorCode.DOWNLOAD_FAILED, "The download failed. Check your connection and try again.", reason="download_failed")
+            raise mapped
+
+        produced = find_part_file(dest_dir, part)
+        if produced is None:
+            if "max-filesize" in text.lower() or "larger than" in text.lower():
+                raise AppError(ErrorCode.MEDIA_NOT_AVAILABLE, "That file is larger than the maximum size allowed.", reason="too_large")
+            raise AppError(ErrorCode.DOWNLOAD_FAILED, "The download finished but no file was produced.", reason="no_output")
+        return produced
+
+
+# Fields are space-separated; yt-dlp prints "NA" for unknown values.
+PROGRESS_TEMPLATE = (
+    "download:PMPROG %(progress.downloaded_bytes)s %(progress.total_bytes)s "
+    "%(progress.total_bytes_estimate)s %(progress.speed)s %(progress.eta)s"
+)
+_TEMP_EXTENSIONS = frozenset({"part", "ytdl", "temp", "tmp"})
+_PART_FILE = re.compile(r"^part(\d+)\.([a-z0-9]{1,5})$")
+
+
+def _num(token: str) -> float | None:
+    try:
+        value = float(token)
+    except ValueError:
+        return None
+    return value if value == value and value >= 0 else None  # rejects NaN and negatives
+
+
+def parse_progress_line(line: str) -> TransferProgress | None:
+    """Parse one PMPROG line into TransferProgress; anything else (including junk) returns None."""
+    if not line.startswith("PMPROG "):
+        return None
+    fields = line.split()[1:]
+    if len(fields) != 5:
+        return None
+    downloaded, total, estimate, speed, eta = (_num(f) for f in fields)
+    if downloaded is None:
+        return None
+    size = total or estimate
+    return TransferProgress(int(downloaded), int(size) if size else None, speed, eta)
+
+
+def find_part_file(directory: Path, part: int) -> Path | None:
+    """The finished download for ``part``, ignoring partial/temporary files. Names must match our own scheme."""
+    candidates = []
+    for path in directory.iterdir():
+        match = _PART_FILE.match(path.name)
+        if (
+            match
+            and int(match.group(1)) == part
+            and match.group(2) not in _TEMP_EXTENSIONS
+            and path.is_file()
+            and not path.is_symlink()
+        ):
+            candidates.append(path)
+    return max(candidates, key=lambda p: p.stat().st_size) if candidates else None

@@ -71,11 +71,39 @@
             <label for="format-select">Format</label>
             <select id="format-select"></select>
           </div>
+          <div class="field">
+            <label for="output-select">Save as</label>
+            <select id="output-select"></select>
+          </div>
         </div>
         <div class="media-actions">
-          <button type="button" class="button primary" id="download-button" disabled aria-describedby="download-hint">Download</button>
-          <p class="hint" id="download-hint">Downloading is added in the next build phase.</p>
+          <button type="button" class="button primary" id="download-button" aria-describedby="download-hint">Download</button>
+          <p class="hint" id="download-hint">Saved to your PersonalMedia folder.</p>
         </div>
+      </div>
+    </section>
+
+    <section id="job-panel" class="job-panel" data-state="queued" aria-labelledby="job-title" hidden>
+      <div class="job-head">
+        <h2 id="job-title"></h2>
+        <p id="job-stage" class="job-stage" aria-live="polite"></p>
+      </div>
+      <div class="progress" id="job-progress" role="progressbar" aria-labelledby="job-title" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="progress-bar" id="job-progress-bar"></div>
+      </div>
+      <dl class="facts job-facts">
+        <div><dt>Progress</dt><dd id="job-percent">0%</dd></div>
+        <div><dt>Downloaded</dt><dd id="job-downloaded">—</dd></div>
+        <div><dt>Speed</dt><dd id="job-speed">—</dd></div>
+        <div><dt>Time left</dt><dd id="job-eta">—</dd></div>
+      </dl>
+      <p id="job-message" class="job-message" role="status"></p>
+      <div class="job-actions">
+        <button type="button" class="button quiet" id="job-cancel">Cancel</button>
+        <button type="button" class="button primary" id="job-open-file" hidden>Open file</button>
+        <button type="button" class="button quiet" id="job-open-folder" hidden>Open folder</button>
+        <button type="button" class="button primary" id="job-retry" hidden>Try again</button>
+        <button type="button" class="button quiet" id="job-another" hidden>Download another</button>
       </div>
     </section>
 

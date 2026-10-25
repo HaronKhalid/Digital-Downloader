@@ -60,6 +60,27 @@ Adapters return `MediaInfo` / `MediaFormat` (see `models/media.py`); the UI neve
 
 **Format ids** reaching a future download step are validated against a strict pattern, and Phase 4 must additionally require the id to be one the analysis returned.
 
+## Phase 4 design
+
+```text
+POST /api/jobs ──> JobService.create ──> queue ──> worker thread ──> DownloadService.run
+   validate URL, detect source, require format_id ∈ analysis, plan (what to fetch / produce)
+                                   disk check -> download part(s) [retry] -> FFmpeg? -> reserve name -> move -> cleanup
+```
+
+| Decision | Rationale |
+| --- | --- |
+| Job states `QUEUED → DOWNLOADING → PROCESSING → COMPLETED`, plus `FAILED` / `CANCELLED` | `ANALYZING`/`READY` dropped: analysis is a separate call before a job exists. Terminal states are final and enforced by the model. |
+| In-memory registry, worker threads, `max_parallel_jobs=1` | Single local user; no Celery/Redis. Last 50 finished jobs kept; persistence arrives with history (Phase 6). |
+| Only format ids returned by analysis can start a job | The browser can never smuggle a format string toward a downloader. The analysis cache is an optimisation; the server re-analyzes if needed. |
+| yt-dlp downloads parts only; **our** FFmpeg merges/converts | Keeps all FFmpeg use inside one controlled path (`run_controlled`) and stops yt-dlp from doing its own post-processing. |
+| Planner: video-only formats are paired with a container-compatible audio stream | Copy streams when possible (lossless, fast); fall back to re-encoding only if the copy fails. |
+| Retries: 2 (after 2 s, then 5 s), only for connection loss/timeouts | Deterministic failures (404, 403, bad format, disk, too large) are never retried. A retry restarts the part; **resume is not implemented**. |
+| Disk check before downloading (temp, and output if on another drive), 256 MB safety margin | Fails early with "Required X, available Y". Unknown sizes need 1 GB free. |
+| Output name = sanitized title + allow-listed extension, reserved with exclusive creation | No overwrite, no race between jobs, no path influence from metadata. |
+| Progress: downloading maps to 0-85% when FFmpeg follows (else 0-99%), never decreases | Smooth multi-part progress. |
+| Server shutdown cancels running jobs and waits | No download or FFmpeg process outlives the server. |
+
 ## Roadmap
 
 | Phase | Status |
@@ -68,7 +89,8 @@ Adapters return `MediaInfo` / `MediaFormat` (see `models/media.py`); the UI neve
 | 1 Foundation, security core | Done |
 | 2 URL + source layer | Done (verified with fixtures and the real extractor's failure path; **not yet against live sites**) |
 | 3 Media UI | Done (verified in headless Chromium) |
-| 4 Download engine, jobs | Next |
+| 4 Download engine, jobs, FFmpeg processing | Done (see "Phase 4 design"; direct downloads, process control and FFmpeg verified for real; **yt-dlp downloads verified only against a fake extractor**) |
+| 5 FFmpeg | Folded into Phase 4 (merge/remux/convert) |
 | 5 FFmpeg processing | |
 | 6 History (SQLite) | |
 | 7 Security hardening | |

@@ -49,3 +49,7 @@ def detect_ffmpeg(timeout: float = 5.0) -> FFmpegStatus:
     if result.returncode != 0 or not match:
         return FFmpegStatus(False, message="FFmpeg was found but did not report a valid version.")
     return FFmpegStatus(True, version=match.group(1))
+
+
+def find_ffmpeg() -> str | None:
+    return shutil.which("ffmpeg")

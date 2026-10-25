@@ -36,6 +36,10 @@ class ErrorCode(str, Enum):
     UNKNOWN_ERROR = "UNKNOWN_ERROR"
 
 
+class OperationCancelled(Exception):
+    """The user cancelled the operation. Not an error: callers clean up and report CANCELLED."""
+
+
 class AppError(Exception):
     """Expected, user-presentable failure. ``reason`` is for logs only."""
 

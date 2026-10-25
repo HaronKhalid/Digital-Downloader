@@ -11,19 +11,27 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__
-from .api.routes import health, media, system
+from .api.routes import health, jobs, media, system
 from .core.config import Settings, get_settings
 from .core.errors import register_exception_handlers
 from .core.logging import configure_logging
 from .core.security import LocalOnlyMiddleware
+from .services.download_service import DownloadService
+from .services.job_service import AnalysisCache, JobService
+from .services.os_open import open_in_os
 from .services.source_service import SourceService, build_source_service
-from .services.file_service import ensure_runtime_directories, validate_output_directory
+from .services.file_service import cleanup_abandoned_temp, ensure_runtime_directories, validate_output_directory
 
 logger = logging.getLogger("app.main")
 TOKEN_PLACEHOLDER = "__SESSION_TOKEN__"
 
 
-def create_app(settings: Settings | None = None, source_service: SourceService | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    source_service: SourceService | None = None,
+    job_service: JobService | None = None,
+    opener=open_in_os,
+) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings.log_level)
     session_token = secrets.token_urlsafe(32)
@@ -32,11 +40,16 @@ def create_app(settings: Settings | None = None, source_service: SourceService |
     async def lifespan(app: FastAPI):
         output = validate_output_directory(settings.output_directory)
         ensure_runtime_directories(output, settings.temp_directory, settings.database_path)
+        removed = cleanup_abandoned_temp(settings.temp_directory)
+        if removed:
+            logger.info("removed abandoned temp folders", extra={"operation": "startup", "status": f"{removed} removed"})
+        app.state.job_service.start()
         logger.info(
             "application started",
             extra={"operation": "startup", "status": f"{settings.app_env} {settings.host}:{settings.port}"},
         )
         yield
+        app.state.job_service.shutdown()  # cancels running work so no child process outlives the server
         logger.info("application stopped", extra={"operation": "shutdown", "status": "ok"})
 
     # Interactive API docs are disabled: they pull scripts from a CDN, which our CSP forbids.
@@ -51,6 +64,11 @@ def create_app(settings: Settings | None = None, source_service: SourceService |
     app.state.settings = settings
     app.state.session_token = session_token
     app.state.source_service = source_service or build_source_service(settings)
+    app.state.analysis_cache = AnalysisCache()
+    app.state.job_service = job_service or JobService(
+        settings, app.state.source_service, DownloadService(settings), app.state.analysis_cache
+    )
+    app.state.opener = opener
 
     app.add_middleware(
         LocalOnlyMiddleware,
@@ -63,6 +81,7 @@ def create_app(settings: Settings | None = None, source_service: SourceService |
     app.include_router(health.router)
     app.include_router(system.router)
     app.include_router(media.router)
+    app.include_router(jobs.router)
 
     @app.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
     def index() -> HTMLResponse:

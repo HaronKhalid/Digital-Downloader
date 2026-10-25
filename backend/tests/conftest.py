@@ -25,6 +25,10 @@ from backend.app.models.media import MediaFormat, MediaInfo  # noqa: E402
 from backend.app.services.sources.base import MediaSource  # noqa: E402
 
 
+import time as _time  # noqa: E402
+from backend.app.services.http_client import TransferProgress  # noqa: E402
+
+
 class FakeSource(MediaSource):
     """Handles https://media.example/... without touching the network."""
 
@@ -48,3 +52,16 @@ class FakeSource(MediaSource):
                 MediaFormat("a128", "audio", "m4a", None, True, None, False, "Audio · M4A"),
             ),
         )
+
+    def download(self, url, fmt, dest_dir, part, ctx):
+        dest = dest_dir / f"part{part}.{fmt.container}"
+        total = 100_000
+        with open(dest, "xb") as fh:
+            for i in range(10):
+                if ctx.cancel.is_set():
+                    from backend.app.core.errors import OperationCancelled
+
+                    raise OperationCancelled
+                fh.write(b"\0" * (total // 10))
+                ctx.on_progress(TransferProgress((i + 1) * total // 10, total, 1e6, 0.1))
+        return dest

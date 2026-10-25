@@ -1,31 +1,14 @@
 // Renders normalized analysis results. Everything from the backend is treated as untrusted text:
 // values are only ever assigned through textContent / element.value, never as markup.
+import { formatDuration, formatSize } from "./format.js";
+import { state } from "./state.js";
 import { els } from "./ui.js";
+
+const VIDEO_OUTPUTS = ["mp4", "mkv", "webm"];
+const AUDIO_OUTPUTS = ["mp3", "m4a", "opus"];
 
 const AUDIO_GROUP = "Audio only";
 let current = null;
-
-export function formatDuration(seconds) {
-  if (!Number.isFinite(seconds) || seconds <= 0) return "Unknown";
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-  const two = (n) => String(n).padStart(2, "0");
-  return h > 0 ? `${h}:${two(m)}:${two(s)}` : `${m}:${two(s)}`;
-}
-
-export function formatSize(bytes, approximate = false) {
-  if (!Number.isFinite(bytes) || bytes <= 0) return "Unknown";
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  let value = bytes;
-  let unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
-    unit += 1;
-  }
-  const text = `${unit === 0 ? value : value.toFixed(value >= 100 ? 0 : 1)} ${units[unit]}`;
-  return approximate ? `about ${text}` : text;
-}
 
 function groupKey(format) {
   return format.type === "audio" ? AUDIO_GROUP : format.resolution ?? "Original file";
@@ -68,9 +51,26 @@ function selectedFormat() {
   return current?.analysis.formats.find((f) => f.id === els.format.value) ?? null;
 }
 
+function fillOutputs() {
+  const format = selectedFormat();
+  const choices = format?.type === "audio" ? AUDIO_OUTPUTS : VIDEO_OUTPUTS;
+  els.output.replaceChildren(
+    option("", "Same as source"),
+    ...choices.filter((c) => c !== format?.container).map((c) => option(c, c.toUpperCase())),
+  );
+}
+
 function updateSize() {
   const format = selectedFormat();
   els.size.textContent = format ? formatSize(format.filesize, format.filesize_approximate) : "Unknown";
+  fillOutputs();
+}
+
+/** The Download button is only usable when a result is shown and no download is already running. */
+export function syncDownloadButton() {
+  const busy = state.activeJobId !== null;
+  els.download.disabled = busy || selectedFormat() === null;
+  els.downloadHint.textContent = busy ? "A download is already running." : "Saved to your PersonalMedia folder.";
 }
 
 export function renderMedia(analysis) {
@@ -95,8 +95,12 @@ export function renderMedia(analysis) {
   els.quality.replaceChildren(...[...groups.keys()].map((key) => option(key, key)));
   fillFormats();
   els.quality.onchange = fillFormats;
-  els.format.onchange = updateSize;
+  els.format.onchange = () => {
+    updateSize();
+    syncDownloadButton();
+  };
 
+  syncDownloadButton();
   els.card.hidden = false;
   // Bring the whole card (including the controls) into view without a jarring animation.
   els.card.scrollIntoView({ block: "nearest", behavior: "auto" });
@@ -107,8 +111,8 @@ export function hideMedia() {
   els.card.hidden = true;
 }
 
-/** The format the user picked, for the download step added in the next phase. */
+/** What the user picked: the analyzed URL, the format, and the optional "Save as" container. */
 export function getSelection() {
   const format = selectedFormat();
-  return current && format ? { url: current.analysis.url, format } : null;
+  return current && format ? { url: current.analysis.url, format, output: els.output.value || null } : null;
 }

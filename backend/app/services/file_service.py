@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 import shutil
+import time
 import uuid
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
@@ -96,3 +97,48 @@ def unique_destination(directory: Path, filename: str) -> Path:
 def ensure_runtime_directories(output: Path, temp: Path, database_file: Path) -> None:
     for directory in (output, temp, database_file.parent):
         directory.mkdir(parents=True, exist_ok=True)
+
+
+def reserve_destination(directory: Path, filename: str) -> Path:
+    """Atomically claim a non-existing file name in ``directory`` (creates an empty placeholder).
+
+    Using exclusive creation means two jobs finishing at the same moment can never pick the same
+    name or overwrite each other's file.
+    """
+    candidate = safe_join(directory, filename)
+    stem, suffix = candidate.stem, candidate.suffix
+    for n in range(0, 1000):
+        path = candidate if n == 0 else safe_join(directory, f"{stem} ({n}){suffix}")
+        try:
+            with open(path, "xb"):
+                pass
+            return path
+        except FileExistsError:
+            continue
+    raise PathSafetyError("Too many files with the same name.")
+
+
+_JOB_DIR_NAME = re.compile(r"^job-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+
+
+def cleanup_abandoned_temp(temp_root: Path, older_than_seconds: float = 600.0) -> int:
+    """Delete leftover ``job-<uuid>`` directories (e.g. after a crash). Returns how many were removed.
+
+    Only real directories whose names match our own scheme are touched, never symlinks and
+    never anything else that happens to live in the temp folder.
+    """
+    root = Path(temp_root)
+    if not root.is_dir():
+        return 0
+    removed = 0
+    cutoff = time.time() - older_than_seconds
+    for child in root.iterdir():
+        if not _JOB_DIR_NAME.match(child.name) or child.is_symlink() or not child.is_dir():
+            continue
+        try:
+            if child.stat().st_mtime <= cutoff:
+                shutil.rmtree(child, ignore_errors=True)
+                removed += 1
+        except OSError:
+            continue
+    return removed

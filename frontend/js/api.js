@@ -51,4 +51,9 @@ export const api = {
   health: () => request("GET", "/api/health"),
   dependencies: () => request("GET", "/api/system/dependencies"),
   analyze: (url) => request("POST", "/api/media/analyze", { url }),
+  createJob: (payload) => request("POST", "/api/jobs", payload),
+  getJob: (id) => request("GET", `/api/jobs/${encodeURIComponent(id)}`),
+  listJobs: () => request("GET", "/api/jobs"),
+  cancelJob: (id) => request("POST", `/api/jobs/${encodeURIComponent(id)}/cancel`),
+  openJob: (id, action) => request("POST", `/api/jobs/${encodeURIComponent(id)}/open`, { action }),
 };

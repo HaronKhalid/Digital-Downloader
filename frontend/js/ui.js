@@ -23,8 +23,19 @@ export const els = {
   saveSettings: $("save-settings-button"),
   settingsMessage: $("settings-save-message"),
   allowedDomains: $("allowed-domains-input"),
+  allowedDomainsField: $("allowed-domains-field"),
   saveDomains: $("save-domains-button"),
   domainsMessage: $("domains-save-message"),
+  universalMode: $("universal-mode-toggle"),
+  cookiesStatusBadge: $("cookies-status-badge"),
+  cookiesFileInput: $("cookies-file-input"),
+  pasteCookiesBtn: $("paste-cookies-button"),
+  clearCookiesBtn: $("clear-cookies-button"),
+  cookiesPasteBox: $("cookies-paste-box"),
+  cookiesTextarea: $("cookies-textarea"),
+  saveCookiesTextBtn: $("save-cookies-text-button"),
+  cancelCookiesTextBtn: $("cancel-cookies-text-button"),
+  cookiesSaveMessage: $("cookies-save-message"),
   dependencyList: $("dependency-list"),
   refreshDependencies: $("refresh-dependencies"),
   card: $("media-card"),
@@ -251,4 +262,29 @@ export function setDomainsMessage(state, text) {
   if (!els.domainsMessage) return;
   els.domainsMessage.dataset.state = state;
   els.domainsMessage.textContent = text;
+}
+
+export function setCookiesMessage(state, text) {
+  if (!els.cookiesSaveMessage) return;
+  els.cookiesSaveMessage.dataset.state = state;
+  els.cookiesSaveMessage.textContent = text;
+}
+
+export function renderCookiesStatus(status) {
+  if (!els.cookiesStatusBadge) return;
+  if (status.has_cookies) {
+    els.cookiesStatusBadge.textContent = "Cookies active";
+    els.cookiesStatusBadge.dataset.state = "ok";
+    if (els.clearCookiesBtn) els.clearCookiesBtn.hidden = false;
+    let hint = `Active (${status.line_count} entries)`;
+    if (status.domains_authenticated && status.domains_authenticated.length > 0) {
+      hint += ` · ${status.domains_authenticated.slice(0, 4).join(", ")}`;
+    }
+    setCookiesMessage("ok", hint);
+  } else {
+    els.cookiesStatusBadge.textContent = "No cookies";
+    els.cookiesStatusBadge.dataset.state = "";
+    if (els.clearCookiesBtn) els.clearCookiesBtn.hidden = true;
+    setCookiesMessage("", "Public media works out of the box. Import cookies for private / login-only content.");
+  }
 }

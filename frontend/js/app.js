@@ -8,7 +8,9 @@ import {
   renderDependencies,
   renderDependencyError,
   renderHistory,
+  renderCookiesStatus,
   setBusy,
+  setCookiesMessage,
   setDomainsMessage,
   setSettingsMessage,
   setStatus,
@@ -133,11 +135,20 @@ async function loadSettings() {
     if (els.outputDirectory) {
       els.outputDirectory.value = data.output_directory;
     }
+    if (els.universalMode) {
+      els.universalMode.checked = Boolean(data.universal_mode);
+      if (els.allowedDomainsField) {
+        els.allowedDomainsField.style.opacity = data.universal_mode ? "0.4" : "1";
+      }
+    }
     if (els.allowedDomains && data.allowed_source_domains) {
       els.allowedDomains.value = data.allowed_source_domains.join(", ");
     }
     setSettingsMessage("", "");
     setDomainsMessage("", "");
+
+    const cookies = await api.getCookies();
+    renderCookiesStatus(cookies);
   } catch {
     setSettingsMessage("error", "Could not load settings.");
   }
@@ -235,6 +246,95 @@ async function start() {
   if (els.refreshHistory) {
     els.refreshHistory.addEventListener("click", loadHistory);
   }
+
+  if (els.universalMode) {
+    els.universalMode.addEventListener("change", async (e) => {
+      const enabled = e.target.checked;
+      setDomainsMessage("", "Updating mode…");
+      try {
+        const updated = await api.updateSettings({ universal_mode: enabled });
+        if (els.allowedDomains) {
+          els.allowedDomains.value = updated.allowed_source_domains.join(", ");
+        }
+        if (els.allowedDomainsField) {
+          els.allowedDomainsField.style.opacity = enabled ? "0.4" : "1";
+        }
+        setDomainsMessage("ok", enabled ? "Universal Mode active (Seal style: all sites allowed)." : "Curated allowed sites active.");
+      } catch (err) {
+        setDomainsMessage("error", err instanceof ApiError ? err.message : "Failed to update mode.");
+      }
+    });
+  }
+
+  if (els.cookiesFileInput) {
+    els.cookiesFileInput.addEventListener("change", async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        setCookiesMessage("", "Uploading cookies…");
+        const text = await file.text();
+        const updated = await api.updateCookies(text);
+        renderCookiesStatus(updated);
+        setCookiesMessage("ok", "Cookies imported successfully.");
+      } catch (err) {
+        setCookiesMessage("error", err instanceof ApiError ? err.message : "Failed to import cookies.");
+      } finally {
+        e.target.value = "";
+      }
+    });
+  }
+
+  if (els.pasteCookiesBtn) {
+    els.pasteCookiesBtn.addEventListener("click", () => {
+      els.cookiesPasteBox.hidden = !els.cookiesPasteBox.hidden;
+      if (!els.cookiesPasteBox.hidden && els.cookiesTextarea) els.cookiesTextarea.focus();
+    });
+  }
+  if (els.cancelCookiesTextBtn) {
+    els.cancelCookiesTextBtn.addEventListener("click", () => {
+      els.cookiesPasteBox.hidden = true;
+      if (els.cookiesTextarea) els.cookiesTextarea.value = "";
+    });
+  }
+  if (els.saveCookiesTextBtn) {
+    els.saveCookiesTextBtn.addEventListener("click", async () => {
+      const text = els.cookiesTextarea?.value.trim();
+      if (!text) {
+        setCookiesMessage("error", "Please paste valid Netscape cookie content.");
+        return;
+      }
+      try {
+        setCookiesMessage("", "Saving cookies…");
+        const updated = await api.updateCookies(text);
+        renderCookiesStatus(updated);
+        els.cookiesPasteBox.hidden = true;
+        if (els.cookiesTextarea) els.cookiesTextarea.value = "";
+        setCookiesMessage("ok", "Cookies saved successfully.");
+      } catch (err) {
+        setCookiesMessage("error", err instanceof ApiError ? err.message : "Failed to save cookies.");
+      }
+    });
+  }
+  if (els.clearCookiesBtn) {
+    els.clearCookiesBtn.addEventListener("click", async () => {
+      try {
+        setCookiesMessage("", "Removing cookies…");
+        const updated = await api.deleteCookies();
+        renderCookiesStatus(updated);
+        setCookiesMessage("ok", "Cookies removed.");
+      } catch (err) {
+        setCookiesMessage("error", err instanceof ApiError ? err.message : "Failed to remove cookies.");
+      }
+    });
+  }
+
+  document.querySelectorAll(".platform-chip").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      const text = chip.textContent.trim();
+      els.input.focus();
+      showNotice("info", `Paste any ${text} video or post link above.`);
+    });
+  });
 
   initJobs();
   document.addEventListener("pm:new-download", clearInput);

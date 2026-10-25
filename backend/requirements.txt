@@ -4,3 +4,5 @@ uvicorn==0.54.0
 pydantic==2.14.1
 # Media extractor, run as a subprocess. Update often: sites change and old versions break.
 yt-dlp==2026.10.21
+# TLS fingerprint impersonation for yt-dlp to access modern platforms (Instagram, TikTok, Vimeo, etc.)
+curl_cffi>=0.7.0

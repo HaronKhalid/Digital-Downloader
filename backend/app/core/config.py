@@ -19,6 +19,14 @@ LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 _DOMAIN = re.compile(r"^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$")
 
 
+DEFAULT_SOURCE_DOMAINS = (
+    "youtube.com,youtu.be,instagram.com,instagr.am,facebook.com,fb.watch,fb.com,"
+    "tiktok.com,twitter.com,x.com,reddit.com,pinterest.com,pin.it,vimeo.com,"
+    "soundcloud.com,twitch.tv,threads.net,linkedin.com,dailymotion.com,bilibili.com,"
+    "archive.org,streamable.com,bandcamp.com,tumblr.com,snapchat.com,bsky.app"
+)
+
+
 class ConfigError(RuntimeError):
     """Invalid or unsafe configuration. Raised at startup so the app never runs misconfigured."""
 
@@ -32,6 +40,7 @@ class Settings:
     temp_directory: Path
     database_path: Path
     frontend_directory: Path
+    cookies_path: Path
     max_parallel_jobs: int
     log_level: str
     allowed_ports: frozenset[int]
@@ -66,13 +75,14 @@ class Settings:
         if "*" in origins:
             raise ConfigError("CORS_ORIGINS must not contain a wildcard.")
 
+        raw_domains = env.get("ALLOWED_SOURCE_DOMAINS", DEFAULT_SOURCE_DOMAINS)
         domains = frozenset(
             d.strip().lower().lstrip(".")
-            for d in env.get("ALLOWED_SOURCE_DOMAINS", "archive.org,youtube.com,youtu.be").split(",")
+            for d in raw_domains.split(",")
             if d.strip()
         )
         for domain in domains:
-            if not _DOMAIN.match(domain):
+            if domain != "*" and domain != "all" and not _DOMAIN.match(domain):
                 raise ConfigError(f"ALLOWED_SOURCE_DOMAINS contains an invalid domain: {domain!r}")
 
         data = REPO_ROOT / "data"
@@ -86,6 +96,7 @@ class Settings:
             temp_directory=Path(env.get("TEMP_DIRECTORY") or (data / "temp")).expanduser(),
             database_path=Path(env.get("DATABASE_PATH") or (data / "database" / "history.sqlite3")),
             frontend_directory=Path(env.get("FRONTEND_DIRECTORY") or (REPO_ROOT / "frontend")),
+            cookies_path=Path(env.get("COOKIES_PATH") or (data / "cookies.txt")).expanduser(),
             max_parallel_jobs=max_jobs,
             log_level=env.get("LOG_LEVEL", "INFO").strip().upper(),
             allowed_ports=frozenset({80, 443}),

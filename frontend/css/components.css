@@ -250,3 +250,130 @@ dialog::backdrop { background: rgb(10 12 16 / 0.65); }
 .job-panel[data-state="failed"] .job-message { color: var(--text); }
 .job-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .job-actions .button[hidden] { display: none; }
+
+/* Supported Platforms Chips Bar */
+.platforms-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 1.25rem;
+  padding: 0.25rem 0;
+}
+.platform-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.65rem;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 120ms ease;
+  user-select: none;
+}
+.platform-chip svg { flex-shrink: 0; opacity: 0.75; }
+.platform-chip:hover {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.platform-chip-more {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgb(240 176 87 / 0.1);
+  border: 1px solid rgb(240 176 87 / 0.25);
+  cursor: help;
+}
+
+/* Settings Toggle Rows */
+.setting-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.toggle-label {
+  font-weight: 600;
+  color: var(--text) !important;
+  font-size: 0.95rem !important;
+}
+.toggle-checkbox {
+  width: 1.35rem;
+  height: 1.35rem;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* Cookies & Authentication Card */
+.cookies-field {
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--line);
+}
+.cookies-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.badge {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: 999px;
+  background: var(--raised);
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+.badge[data-state="ok"] {
+  background: rgb(87 200 130 / 0.15);
+  color: var(--ok);
+  border-color: rgb(87 200 130 / 0.35);
+}
+.cookies-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.file-upload-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+#cookies-paste-box {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.5rem;
+}
+#cookies-textarea {
+  width: 100%;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  color: var(--text);
+  font-family: monospace;
+  font-size: 0.8rem;
+  padding: 0.5rem;
+  resize: vertical;
+}
+#cookies-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.cookies-box-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}

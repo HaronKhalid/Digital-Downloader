@@ -36,8 +36,11 @@ Runner = Callable[[list[str], float], tuple[int, bytes, bytes]]
 MAX_OUTPUT_BYTES = 20 * 1024 * 1024
 MAX_FORMATS = 60
 MAX_TITLE = 200
-ALLOWED_PROTOCOLS = frozenset({"http", "https", "m3u8", "m3u8_native", "http_dash_segments"})
-_FORMAT_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.=\-]{0,99}$")
+ALLOWED_PROTOCOLS = frozenset({
+    "http", "https", "m3u8", "m3u8_native", "https+m3u8", "http+m3u8",
+    "http_dash_segments", "dash"
+})
+_FORMAT_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.=+\-:@]{0,99}$")
 _EXT = re.compile(r"^[a-z0-9]{1,5}$")
 _RESOLUTION = re.compile(r"^(\d+)p(\d+)?$")
 
@@ -75,10 +78,10 @@ def map_error(stderr: str) -> AppError:
         return AppError(ErrorCode.UNSUPPORTED_SOURCE, "That page isn't supported. Try a link to a single media item.", reason="unsupported_url")
     if "drm" in text:
         return AppError(ErrorCode.MEDIA_NOT_AVAILABLE, "This media is protected by DRM and can't be downloaded.", reason="drm")
-    if any(k in text for k in ("sign in", "log in", "login", "private", "members", "premium", "subscri", "http error 401", "http error 403", "forbidden")):
+    if any(k in text for k in ("sign in", "log in", "login", "private", "members", "premium", "subscri", "http error 401", "http error 403", "account authentication is required", "instagram api is not granting access")):
         return AppError(
             ErrorCode.MEDIA_NOT_AVAILABLE,
-            "This media needs an account or special permission. Personal Media only works with content that is openly available.",
+            "This media requires login or cookies. Add your cookies in Settings ⚙️ to download from this platform.",
             reason="auth_required",
         )
     if any(k in text for k in ("http error 404", "http error 410", "not found", "does not exist", "unavailable", "removed", "deleted")):
@@ -106,7 +109,7 @@ def _normalize_format(raw: object) -> MediaFormat | None:
     format_id = raw.get("format_id")
     if not isinstance(format_id, str) or not _FORMAT_ID.match(format_id):
         return None
-    ext = str(raw.get("ext") or "").lower()
+    ext = str(raw.get("ext") or "mp4").lower()
     if not _EXT.match(ext) or ext == "mhtml" or "storyboard" in str(raw.get("format_note") or "").lower():
         return None
     protocol = raw.get("protocol")
@@ -115,8 +118,8 @@ def _normalize_format(raw: object) -> MediaFormat | None:
 
     vcodec, acodec = raw.get("vcodec"), raw.get("acodec")
     height = _positive_int(raw.get("height"))
-    has_video = vcodec != "none" and (vcodec is not None or height is not None)
-    has_audio = acodec != "none"
+    has_video = (vcodec != "none" and (vcodec is not None or height is not None)) or ext in ("mp4", "webm", "mkv", "mov", "avi")
+    has_audio = (acodec != "none") or ext in ("mp3", "m4a", "aac", "ogg", "opus", "wav", "flac")
     if not has_video and not has_audio:
         return None
 
@@ -164,7 +167,11 @@ def normalize_info(info: object, *, source_id: str, source_label: str, url: str)
     if info.get("is_live"):
         raise AppError(ErrorCode.MEDIA_NOT_AVAILABLE, "Live streams can't be downloaded.", reason="live")
 
-    formats = [f for f in (_normalize_format(r) for r in (info.get("formats") or [])) if f is not None]
+    raw_formats = info.get("formats")
+    if not raw_formats and (info.get("url") or info.get("protocol")):
+        raw_formats = [info]
+
+    formats = [f for f in (_normalize_format(r) for r in (raw_formats or [])) if f is not None]
     if not formats:
         raise AppError(
             ErrorCode.MEDIA_NOT_AVAILABLE,
@@ -218,15 +225,33 @@ class YtDlpSource(MediaSource):
     def can_handle(self, url: ValidatedURL) -> bool:
         host = url.host
         domains = self._settings.source_domains if self._settings is not None else self._domains
+        if "*" in domains or "all" in domains:
+            return True
         return any(host == d or host.endswith("." + d) for d in domains)
+
+    def _cookie_args(self) -> list[str]:
+        cookies_file = self._settings.cookies_path if self._settings is not None else None
+        if cookies_file and cookies_file.is_file():
+            return ["--cookies", str(cookies_file)]
+        default_file = Path("data/cookies.txt")
+        if default_file.is_file():
+            return ["--cookies", str(default_file)]
+        return ["--no-cookies"]
+
+    def _impersonate_args(self) -> list[str]:
+        if importlib.util.find_spec("curl_cffi") is not None:
+            return ["--impersonate", "chrome"]
+        return []
 
     def build_command(self, url: str) -> list[str]:
         # Argument list only. "--" ends option parsing so the URL can never be read as a flag.
         return [
             *self._base_command,
-            "--ignore-config", "--no-plugin-dirs", "--no-cache-dir", "--no-cookies", "--no-exec",
+            "--ignore-config", "--no-plugin-dirs", "--no-cache-dir", "--no-exec",
+            *self._cookie_args(),
+            *self._impersonate_args(),
             "--dump-single-json", "--no-playlist", "--no-warnings", "--no-progress",
-            "--socket-timeout", "15", "--retries", "1", "--extractor-retries", "1",
+            "--socket-timeout", "15", "--retries", "2", "--extractor-retries", "2",
             "--", url,
         ]
 
@@ -259,7 +284,9 @@ class YtDlpSource(MediaSource):
         template = str(dest_dir / f"part{part}").replace("%", "%%") + ".%(ext)s"
         command = [
             *self._base_command,
-            "--ignore-config", "--no-plugin-dirs", "--no-cache-dir", "--no-cookies", "--no-exec",
+            "--ignore-config", "--no-plugin-dirs", "--no-cache-dir", "--no-exec",
+            *self._cookie_args(),
+            *self._impersonate_args(),
             "--no-playlist", "--no-warnings", "--no-mtime", "--newline",
             "--socket-timeout", "15", "--retries", "2", "--fragment-retries", "2",
             "--max-filesize", str(int(ctx.max_bytes)),

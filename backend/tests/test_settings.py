@@ -140,3 +140,50 @@ def test_settings_api_update_domains(client, auth):
         headers=auth,
     )
     assert res_bad.status_code == 400
+
+
+def test_settings_api_universal_mode(client, auth):
+    res = client.put(
+        "/api/settings",
+        json={"universal_mode": True},
+        headers=auth,
+    )
+    assert res.status_code == 200
+    assert res.json()["universal_mode"] is True
+    assert "*" in res.json()["allowed_source_domains"]
+
+    res_off = client.put(
+        "/api/settings",
+        json={"universal_mode": False},
+        headers=auth,
+    )
+    assert res_off.status_code == 200
+    assert res_off.json()["universal_mode"] is False
+    assert "instagram.com" in res_off.json()["allowed_source_domains"]
+    assert "facebook.com" in res_off.json()["allowed_source_domains"]
+
+
+def test_settings_api_cookies_lifecycle(client, auth):
+    # Initial status
+    status = client.get("/api/settings/cookies", headers=auth)
+    assert status.status_code == 200
+    assert status.json()["has_cookies"] is False
+
+    # Upload cookies
+    cookie_sample = (
+        "# Netscape HTTP Cookie File\n"
+        ".instagram.com\tTRUE\t/\tTRUE\t1799999999\tsessionid\t123456\n"
+        ".facebook.com\tTRUE\t/\tTRUE\t1799999999\tc_user\t987654\n"
+    )
+    saved = client.post("/api/settings/cookies", json={"cookies_content": cookie_sample}, headers=auth)
+    assert saved.status_code == 200
+    data = saved.json()
+    assert data["has_cookies"] is True
+    assert "instagram.com" in data["domains_authenticated"]
+    assert "facebook.com" in data["domains_authenticated"]
+
+    # Delete cookies
+    deleted = client.delete("/api/settings/cookies", headers=auth)
+    assert deleted.status_code == 200
+    assert deleted.json()["has_cookies"] is False
+

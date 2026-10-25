@@ -55,7 +55,7 @@ function fillOutputs() {
   const format = selectedFormat();
   const choices = format?.type === "audio" ? AUDIO_OUTPUTS : VIDEO_OUTPUTS;
   els.output.replaceChildren(
-    option("", "Same as source"),
+    option("", `Same as source (${(format?.container || "").toUpperCase()})`),
     ...choices.filter((c) => c !== format?.container).map((c) => option(c, c.toUpperCase())),
   );
 }

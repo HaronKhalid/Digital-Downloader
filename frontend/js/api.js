@@ -63,4 +63,7 @@ export const api = {
   settings: () => request("GET", "/api/settings"),
   updateSettings: (payload) =>
     request("PUT", "/api/settings", typeof payload === "string" ? { output_directory: payload } : payload),
+  getCookies: () => request("GET", "/api/settings/cookies"),
+  updateCookies: (content) => request("POST", "/api/settings/cookies", { cookies_content: content }),
+  deleteCookies: () => request("DELETE", "/api/settings/cookies"),
 };

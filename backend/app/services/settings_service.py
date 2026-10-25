@@ -54,7 +54,7 @@ class SettingsService:
             row_domains = conn.execute("SELECT value FROM app_settings WHERE key = 'allowed_source_domains'").fetchone()
             if row_domains:
                 loaded = {d.strip().lower().lstrip(".") for d in row_domains["value"].split(",") if d.strip()}
-                valid = {d for d in loaded if _DOMAIN.match(d)}
+                valid = {d for d in loaded if d == "*" or d == "all" or _DOMAIN.match(d)}
                 if valid:
                     object.__setattr__(self._settings, "source_domains", frozenset(valid))
 
@@ -89,7 +89,7 @@ class SettingsService:
             d_clean = d.strip().lower().lstrip(".")
             if not d_clean:
                 continue
-            if not _DOMAIN.match(d_clean):
+            if d_clean != "*" and d_clean != "all" and not _DOMAIN.match(d_clean):
                 raise AppError(ErrorCode.INVALID_REQUEST, f"Invalid domain: {d}")
             cleaned.add(d_clean)
         if not cleaned:
@@ -107,10 +107,80 @@ class SettingsService:
         logger.info("updated allowed domains", extra={"operation": "settings", "domains": list(sorted(as_set))})
         return as_set
 
+    def set_universal_mode(self, enabled: bool) -> frozenset[str]:
+        if enabled:
+            return self.update_allowed_domains(["*"])
+        from ..core.config import DEFAULT_SOURCE_DOMAINS
+        return self.update_allowed_domains(DEFAULT_SOURCE_DOMAINS.split(","))
+
+    def get_cookies_status(self) -> dict:
+        cookies_file = self._settings.cookies_path
+        if not cookies_file.is_file():
+            return {
+                "has_cookies": False,
+                "size_bytes": 0,
+                "line_count": 0,
+                "updated_at": None,
+                "domains_authenticated": [],
+            }
+        try:
+            stat = cookies_file.stat()
+            lines = cookies_file.read_text(encoding="utf-8", errors="replace").splitlines()
+            domains = set()
+            for line in lines:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                parts = line.split("\t")
+                if parts:
+                    d = parts[0].lstrip(".").lower()
+                    if d:
+                        domains.add(d)
+            return {
+                "has_cookies": True,
+                "size_bytes": stat.st_size,
+                "line_count": len(lines),
+                "updated_at": stat.st_mtime,
+                "domains_authenticated": sorted(domains)[:10],
+            }
+        except OSError:
+            return {
+                "has_cookies": False,
+                "size_bytes": 0,
+                "line_count": 0,
+                "updated_at": None,
+                "domains_authenticated": [],
+            }
+
+    def save_cookies(self, content: str) -> dict:
+        content = content.strip()
+        if not content:
+            raise AppError(ErrorCode.INVALID_REQUEST, "Cookie content cannot be empty.")
+        if len(content.encode("utf-8")) > 5 * 1024 * 1024:
+            raise AppError(ErrorCode.INVALID_REQUEST, "Cookie file exceeds 5MB limit.")
+
+        cookies_file = self._settings.cookies_path
+        cookies_file.parent.mkdir(parents=True, exist_ok=True)
+        cookies_file.write_text(content + "\n", encoding="utf-8")
+        logger.info("saved cookies file", extra={"operation": "cookies", "path": str(cookies_file)})
+        return self.get_cookies_status()
+
+    def delete_cookies(self) -> dict:
+        cookies_file = self._settings.cookies_path
+        if cookies_file.is_file():
+            try:
+                cookies_file.unlink()
+                logger.info("deleted cookies file", extra={"operation": "cookies", "path": str(cookies_file)})
+            except OSError as exc:
+                raise AppError(ErrorCode.INTERNAL_ERROR, f"Failed to delete cookies: {exc}") from exc
+        return self.get_cookies_status()
+
     def get_all(self) -> dict:
         return {
             "output_directory": str(self._settings.output_directory),
             "allowed_source_domains": sorted(self._settings.source_domains),
+            "universal_mode": "*" in self._settings.source_domains or "all" in self._settings.source_domains,
+            "has_cookies": self._settings.cookies_path.is_file(),
             "max_parallel_jobs": self._settings.max_parallel_jobs,
             "max_download_gb": int(self._settings.max_download_bytes // (1024**3)),
             "log_level": self._settings.log_level,

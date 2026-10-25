@@ -86,7 +86,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: DigitalDownloader-windows-x64
-          path: dist/DigitalDownloader-windows-x64.zip
+          path: |
+            dist/DigitalDownloader.exe
+            dist/DigitalDownloader-windows-x64.zip
           retention-days: 14
 
   # -------------------------------------------------------------

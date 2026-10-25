@@ -1,7 +1,24 @@
 // Thin client for the local backend. The session token is injected into the page by the
 // server and sent with every request; other websites cannot read it.
 
-const token = document.querySelector('meta[name="session-token"]')?.content ?? "";
+let token = document.querySelector('meta[name="session-token"]')?.content ?? "";
+if (token === "__SESSION_TOKEN__") token = "";
+
+export async function ensureSessionToken() {
+  if (token && token !== "__SESSION_TOKEN__") return token;
+  const base = getBackendBaseUrl();
+  try {
+    const res = await fetch(`${base}/api/health`, { method: "GET", cache: "no-store" });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.token) {
+        token = data.token;
+        return token;
+      }
+    }
+  } catch (_) {}
+  return token;
+}
 
 export class ApiError extends Error {
   constructor(code, message, status) {
@@ -16,7 +33,7 @@ export function getBackendBaseUrl() {
   if (window.AndroidBridge && typeof window.AndroidBridge.getBackendUrl === "function") {
     try {
       const bridgeUrl = window.AndroidBridge.getBackendUrl();
-      if (bridgeUrl) return bridgeUrl.replace(/\/+$/, "");
+      if (bridgeUrl && bridgeUrl !== "http://10.0.2.2:8000") return bridgeUrl.replace(/\/+$/, "");
     } catch (_) {}
   }
   const stored = localStorage.getItem("digital_downloader_backend_url") || localStorage.getItem("linkfetch_backend_url");
@@ -43,6 +60,9 @@ export function setBackendBaseUrl(url) {
 async function request(method, path, body) {
   const base = getBackendBaseUrl();
   const url = base ? `${base}${path}` : path;
+  if (!token || token === "__SESSION_TOKEN__") {
+    await ensureSessionToken();
+  }
   let response;
   try {
     response = await fetch(url, {

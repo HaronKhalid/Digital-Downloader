@@ -24,33 +24,31 @@ BIN = ROOT / "bin"
 FRONTEND = ROOT / "frontend"
 
 
-def ensure_ffmpeg() -> None:
-    """Ensure ffmpeg.exe and ffprobe.exe are in ROOT/bin before packaging."""
-    ffmpeg_exe = BIN / "ffmpeg.exe"
-    ffprobe_exe = BIN / "ffprobe.exe"
-    if not ffmpeg_exe.is_file() or not ffprobe_exe.is_file():
-        print(">> FFmpeg binaries missing in bin/. Running install_ffmpeg.py...")
-        subprocess.run([sys.executable, str(ROOT / "scripts" / "install_ffmpeg.py")], check=True)
-    if not ffmpeg_exe.is_file():
-        raise RuntimeError("Failed to obtain ffmpeg.exe for bundling.")
-    print(f">> Confirmed FFmpeg binaries at: {BIN}")
+def ensure_binaries() -> None:
+    """Ensure ffmpeg.exe, ffprobe.exe, and yt-dlp.exe are in ROOT/bin before packaging."""
+    print(">> Ensuring all multimedia binaries (FFmpeg, FFprobe, yt-dlp) are present in bin/...")
+    subprocess.run([sys.executable, str(ROOT / "scripts" / "install_ffmpeg.py")], check=True)
+    for name in ("ffmpeg.exe", "ffprobe.exe", "yt-dlp.exe"):
+        target = BIN / name
+        if not target.is_file():
+            raise RuntimeError(f"Missing required binary: {target}")
+    print(f">> Confirmed all binaries ready at: {BIN}")
 
 
 def build_pyinstaller() -> Path:
-    """Run PyInstaller to create dist/DigitalDownloader/."""
+    """Run PyInstaller to create a single standalone DigitalDownloader.exe."""
     print(">> Running PyInstaller build for Digital Downloader...")
     DIST.mkdir(parents=True, exist_ok=True)
-    target_dir = DIST / "DigitalDownloader"
-    if target_dir.exists():
-        shutil.rmtree(target_dir, ignore_errors=True)
 
+    icon_path = ROOT / "Assets" / "app_icon.ico"
     cmd = [
         sys.executable,
         "-m",
         "PyInstaller",
         "--noconfirm",
         "--clean",
-        "--onedir",
+        "--onefile",
+        "--noconsole",
         "--name",
         "DigitalDownloader",
         "--distpath",
@@ -63,6 +61,10 @@ def build_pyinstaller() -> Path:
         f"{BIN / 'ffmpeg.exe'};bin",
         "--add-binary",
         f"{BIN / 'ffprobe.exe'};bin",
+        "--add-binary",
+        f"{BIN / 'yt-dlp.exe'};bin",
+        "--collect-all",
+        "yt_dlp",
         "--hidden-import",
         "uvicorn",
         "--hidden-import",
@@ -81,78 +83,56 @@ def build_pyinstaller() -> Path:
         "uvicorn.lifespan",
         "--hidden-import",
         "uvicorn.lifespan.on",
-        str(ROOT / "scripts" / "run_app.py"),
     ]
+    if icon_path.is_file():
+        cmd.extend(["--icon", str(icon_path)])
+    cmd.append(str(ROOT / "scripts" / "run_app.py"))
+
     subprocess.run(cmd, check=True)
-    return target_dir
+    exe_path = DIST / "DigitalDownloader.exe"
+    if not exe_path.is_file():
+        raise RuntimeError(f"PyInstaller build failed: {exe_path} not found.")
+    return exe_path
 
 
-def post_process_distribution(target_dir: Path) -> None:
-    """Add standalone bin folder, documentation, and default .env."""
-    print(">> Post-processing distribution package...")
-    dist_bin = target_dir / "bin"
-    dist_bin.mkdir(parents=True, exist_ok=True)
-    for exe in ("ffmpeg.exe", "ffprobe.exe"):
-        src = BIN / exe
-        if src.is_file():
-            shutil.copy2(src, dist_bin / exe)
-
-    # Copy frontend if not already present
-    dist_frontend = target_dir / "frontend"
-    if not dist_frontend.exists() and FRONTEND.exists():
-        shutil.copytree(FRONTEND, dist_frontend)
-
-    # Copy default configuration
-    env_example = ROOT / ".env.example"
-    if env_example.is_file():
-        shutil.copy2(env_example, target_dir / ".env")
-
-    # Write Quickstart guide
-    readme = target_dir / "README.txt"
-    readme.write_text(
-        "Digital Downloader - Standalone Windows Application\n"
-        "===================================================\n\n"
-        "1. Double-click DigitalDownloader.exe to launch.\n"
-        "2. Your web browser will open automatically to:\n"
-        "   http://127.0.0.1:8000\n\n"
-        "Everything is bundled:\n"
-        "- FFmpeg and FFprobe are included in bin/ (no separate installation needed).\n"
-        "- Downloads are safely stored in your Downloads/DigitalDownloader folder.\n"
-        "- All media is checked, downloaded, and transcoded locally on this machine.\n\n"
-        "To stop the application, close the Digital Downloader command window or press Ctrl+C.\n",
-        encoding="utf-8",
-    )
-
-
-def create_zip_archive(target_dir: Path) -> Path:
-    """Create dist/DigitalDownloader-windows-x64.zip."""
+def create_zip_archive(exe_path: Path) -> Path:
+    """Create dist/DigitalDownloader-windows-x64.zip containing standalone executable and README."""
     zip_path = DIST / "DigitalDownloader-windows-x64.zip"
-    print(f">> Compressing release archive to {zip_path.name}...")
+    print(f">> Creating distribution zip: {zip_path.name}...")
     if zip_path.exists():
         zip_path.unlink()
 
+    readme_content = (
+        "Digital Downloader - Standalone Desktop App\n"
+        "===========================================\n\n"
+        "Double-click DigitalDownloader.exe to start.\n"
+        "Your browser will open automatically at http://127.0.0.1:8000\n\n"
+        "Features:\n"
+        "- Single executable: No Python or FFmpeg installation required.\n"
+        "- All extractors and codecs (yt-dlp, FFmpeg, FFprobe) are fully bundled.\n"
+        "- Works directly without extracting from zip.\n"
+        "- Downloads save to your Downloads/DigitalDownloader folder.\n"
+        "- Mobile access: Phones on the same Wi-Fi can connect directly using your PC's IP address.\n"
+    )
+
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-        for root_dir, _, filenames in os.walk(target_dir):
-            for filename in filenames:
-                full_path = Path(root_dir) / filename
-                rel_path = full_path.relative_to(DIST)
-                zf.write(full_path, arcname=str(rel_path))
+        zf.write(exe_path, arcname="DigitalDownloader.exe")
+        zf.writestr("README.txt", readme_content)
 
     size_mb = zip_path.stat().st_size / (1024 * 1024)
-    print(f">> Release archive built successfully: {zip_path.name} ({size_mb:.1f} MB)")
+    print(f">> Release archive created: {zip_path.name} ({size_mb:.1f} MB)")
     return zip_path
 
 
 def main() -> None:
     print("=" * 60)
-    print(" Digital Downloader - Windows Package Builder")
+    print(" Digital Downloader - Standalone Windows Executable Builder")
     print("=" * 60)
-    ensure_ffmpeg()
-    target = build_pyinstaller()
-    post_process_distribution(target)
-    create_zip_archive(target)
+    ensure_binaries()
+    exe = build_pyinstaller()
+    create_zip_archive(exe)
     print("=" * 60)
-    print(f" Packaging complete! Distribution folder: {target}")
+    print(f" Packaging complete! Standalone executable: {exe}")
     print("=" * 60)
 
 

@@ -31,7 +31,9 @@ class MainActivity : AppCompatActivity() {
 
         // Setup Asset Loader to serve local assets securely via https://appassets.androidplatform.net/
         assetLoader = WebViewAssetLoader.Builder()
+            .setDomain("appassets.androidplatform.net")
             .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
+            .addPathHandler("/static/", WebViewAssetLoader.AssetsPathHandler(this))
             .build()
 
         setupViews()
@@ -88,7 +90,24 @@ class MainActivity : AppCompatActivity() {
                     view: WebView,
                     request: WebResourceRequest
                 ): WebResourceResponse? {
-                    return assetLoader.shouldInterceptRequest(request.url)
+                    // 1. Try standard asset loader first
+                    val intercepted = assetLoader.shouldInterceptRequest(request.url)
+                    if (intercepted != null) return intercepted
+
+                    // 2. Direct asset fallback for any /static/ or relative URLs
+                    try {
+                        val path = request.url.path ?: return null
+                        val cleanPath = path.removePrefix("/assets/").removePrefix("/static/").removePrefix("/")
+                        val candidates = listOf("static/$cleanPath", cleanPath)
+                        for (candidate in candidates) {
+                            try {
+                                val stream = assets.open(candidate)
+                                val mime = getMimeType(candidate)
+                                return WebResourceResponse(mime, "UTF-8", stream)
+                            } catch (_: Exception) {}
+                        }
+                    } catch (_: Exception) {}
+                    return null
                 }
 
                 override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
@@ -177,11 +196,24 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun getMimeType(filePath: String): String {
-        val ext = MimeTypeMap.getFileExtensionFromUrl(filePath)
-        return if (ext != null) {
-            MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext.lowercase()) ?: "*/*"
-        } else {
-            "*/*"
+        val lower = filePath.lowercase()
+        return when {
+            lower.endsWith(".css") -> "text/css"
+            lower.endsWith(".js") || lower.endsWith(".mjs") -> "application/javascript"
+            lower.endsWith(".html") || lower.endsWith(".htm") -> "text/html"
+            lower.endsWith(".png") -> "image/png"
+            lower.endsWith(".jpg") || lower.endsWith(".jpeg") -> "image/jpeg"
+            lower.endsWith(".webp") -> "image/webp"
+            lower.endsWith(".svg") -> "image/svg+xml"
+            lower.endsWith(".ico") -> "image/x-icon"
+            lower.endsWith(".json") -> "application/json"
+            lower.endsWith(".woff2") -> "font/woff2"
+            lower.endsWith(".woff") -> "font/woff"
+            lower.endsWith(".ttf") -> "font/ttf"
+            else -> {
+                val ext = MimeTypeMap.getFileExtensionFromUrl(filePath)
+                (if (ext != null) MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext.lowercase()) else null) ?: "*/*"
+            }
         }
     }
 }

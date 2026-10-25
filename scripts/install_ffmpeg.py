@@ -76,5 +76,39 @@ def install_ffmpeg() -> Path:
     return target_ffmpeg
 
 
-if __name__ == "__main__":
+YTDLP_URL = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe"
+
+
+def install_ytdlp() -> Path:
+    BIN_DIR.mkdir(parents=True, exist_ok=True)
+    target_ytdlp = BIN_DIR / "yt-dlp.exe"
+    if target_ytdlp.is_file():
+        print(f"yt-dlp is already installed at: {target_ytdlp}")
+        return target_ytdlp
+
+    print(f"Downloading standalone yt-dlp binary from {YTDLP_URL}...")
+    temp_file = BIN_DIR / "yt-dlp_temp.exe"
+    try:
+        urllib.request.urlretrieve(YTDLP_URL, temp_file)
+        if temp_file.is_file() and temp_file.stat().st_size > 5 * 1024 * 1024:
+            shutil.move(str(temp_file), str(target_ytdlp))
+            print(f"Installed yt-dlp.exe -> {target_ytdlp}")
+        else:
+            raise RuntimeError("Downloaded yt-dlp binary is invalid or incomplete.")
+    finally:
+        if temp_file.is_file():
+            temp_file.unlink(missing_ok=True)
+
+    result = subprocess.run([str(target_ytdlp), "--version"], capture_output=True, text=True, check=False)
+    version = (result.stdout or "").strip()
+    print(f"Verified standalone yt-dlp binary version: {version}")
+    return target_ytdlp
+
+
+def install_all() -> None:
     install_ffmpeg()
+    install_ytdlp()
+
+
+if __name__ == "__main__":
+    install_all()

@@ -92,9 +92,11 @@ async function refreshDependencies() {
     else if (!deps.extractor.ok) setStatus("warn", "Media extractor not installed");
     else setStatus("ok", `Ready · FFmpeg ${deps.ffmpeg.version.split("-")[0]}`);
   } catch (error) {
-    const message = error instanceof ApiError ? error.message : "Could not check dependencies.";
-    renderDependencyError(message);
-    setStatus("error", "Backend offline");
+    if (window.AndroidBridge) {
+      setStatus("warn", "Connect PC in Settings ⚙️");
+    } else {
+      setStatus("error", "Backend offline");
+    }
   }
 }
 

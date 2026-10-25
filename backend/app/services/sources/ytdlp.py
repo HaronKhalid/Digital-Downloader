@@ -16,6 +16,7 @@ import importlib.util
 import json
 import logging
 import re
+import shutil
 import subprocess
 import sys
 import urllib.parse
@@ -49,8 +50,56 @@ _RESOLUTION = re.compile(r"^(\d+)p(\d+)?$")
 INSTALL_HINT = "The media extractor (yt-dlp) isn't installed. Run scripts\\setup.ps1 again to install it."
 
 
+def find_ytdlp_binary() -> Path | None:
+    """Check for standalone yt-dlp binary in bundled and system paths."""
+    candidates: list[Path] = []
+    exe_name = "yt-dlp.exe" if sys.platform == "win32" else "yt-dlp"
+
+    # PyInstaller temporary and executable dirs
+    if getattr(sys, "frozen", False):
+        if hasattr(sys, "_MEIPASS"):
+            candidates.append(Path(sys._MEIPASS) / "bin" / exe_name)
+            candidates.append(Path(sys._MEIPASS) / exe_name)
+        exe_parent = Path(sys.executable).parent
+        candidates.append(exe_parent / "bin" / exe_name)
+        candidates.append(exe_parent / exe_name)
+
+    # Repository / project bin directory
+    repo_bin = Path(__file__).resolve().parents[4] / "bin"
+    candidates.append(repo_bin / exe_name)
+
+    for c in candidates:
+        if c.is_file():
+            return c
+
+    # System PATH
+    found = shutil.which("yt-dlp") or (shutil.which("yt-dlp.exe") if sys.platform == "win32" else None)
+    if found:
+        return Path(found)
+
+    return None
+
+
+def get_default_base_command() -> list[str]:
+    bin_path = find_ytdlp_binary()
+    if bin_path is not None:
+        return [str(bin_path)]
+    return [sys.executable, "-m", "yt_dlp"]
+
+
 def detect_ytdlp() -> tuple[bool, str | None, str | None]:
     """(available, version, message)"""
+    bin_path = find_ytdlp_binary()
+    if bin_path is not None:
+        try:
+            res = subprocess.run([str(bin_path), "--version"], capture_output=True, text=True, timeout=5.0, check=False)
+            v = (res.stdout or "").strip()
+            if v:
+                return True, v, None
+            return True, "standalone", None
+        except Exception:
+            return True, "standalone", None
+
     if importlib.util.find_spec("yt_dlp") is None:
         return False, None, INSTALL_HINT
     try:
@@ -239,7 +288,7 @@ class YtDlpSource(MediaSource):
         self._settings = settings
         self._runner = runner or default_runner
         self._timeout = timeout
-        self._base_command = list(base_command) if base_command else [sys.executable, "-m", "yt_dlp"]
+        self._base_command = list(base_command) if base_command else get_default_base_command()
         self._fallback_urls: dict[tuple[str, str], str] = {}
 
     def can_handle(self, url: ValidatedURL) -> bool:

@@ -72,6 +72,9 @@ def main() -> None:
     resized = icon_img.resize((target_w, target_h), Image.Resampling.LANCZOS)
     fg.paste(resized, ((432 - target_w) // 2, (432 - target_h) // 2), resized)
     fg.save(RES / "drawable" / "ic_launcher_foreground.png", format="PNG")
+    xml_fg = RES / "drawable" / "ic_launcher_foreground.xml"
+    if xml_fg.exists():
+        xml_fg.unlink()
 
     print(">> Android icons generated successfully!")
 

@@ -56,7 +56,7 @@ class SettingsService:
                     resolved = validate_output_directory(row["value"])
                     resolved.mkdir(parents=True, exist_ok=True)
                     object.__setattr__(self._settings, "output_directory", resolved)
-                except (PathSafetyError, OSError) as exc:
+                except (PathSafetyError, OSError, ValueError) as exc:
                     logger.warning("invalid persisted output directory, ignoring: %s", exc)
 
             row_domains = conn.execute("SELECT value FROM app_settings WHERE key = 'allowed_source_domains'").fetchone()
@@ -72,15 +72,17 @@ class SettingsService:
     def update_output_directory(self, raw_path: str) -> Path:
         if not raw_path or not raw_path.strip():
             raise AppError(ErrorCode.INVALID_REQUEST, "Output directory cannot be empty.")
+        if "\x00" in raw_path:
+            raise AppError(ErrorCode.INVALID_REQUEST, "Null bytes are not permitted in paths.")
         p = raw_path.strip()
-        if p.startswith("~"):
-            p = str(Path(p).expanduser())
-        elif p.lower().startswith(("downloads\\", "downloads/")):
-            p = str((Path.home() / Path(p)).resolve())
         try:
+            if p.startswith("~"):
+                p = str(Path(p).expanduser())
+            elif p.lower().startswith(("downloads\\", "downloads/")):
+                p = str((Path.home() / Path(p)).resolve())
             resolved = validate_output_directory(p)
             resolved.mkdir(parents=True, exist_ok=True)
-        except PathSafetyError as exc:
+        except (PathSafetyError, ValueError) as exc:
             raise AppError(ErrorCode.INVALID_REQUEST, str(exc)) from exc
         except OSError as exc:
             raise AppError(ErrorCode.INVALID_REQUEST, f"Could not create output directory: {exc}") from exc

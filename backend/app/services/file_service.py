@@ -73,12 +73,17 @@ def remove_job_dir(temp_root: Path, job_dir: Path) -> None:
 def validate_output_directory(path: str | Path) -> Path:
     """Validate a user-chosen output directory and return it resolved."""
     p_str = str(path).strip()
+    if "\x00" in p_str:
+        raise PathSafetyError("Null bytes are not permitted in paths.")
     if p_str.startswith(("\\\\", "//")):
         raise PathSafetyError("Network shares and device namespaces are not permitted.")
-    raw = Path(path).expanduser()
-    if not raw.is_absolute():
-        raise PathSafetyError("The output directory must be an absolute path.")
-    resolved = raw.resolve()
+    try:
+        raw = Path(path).expanduser()
+        if not raw.is_absolute():
+            raise PathSafetyError("The output directory must be an absolute path.")
+        resolved = raw.resolve()
+    except (ValueError, RuntimeError) as exc:
+        raise PathSafetyError(f"Invalid path: {exc}") from exc
     if resolved.is_file():
         raise PathSafetyError("The output directory cannot be an existing file.")
     if resolved == Path(resolved.anchor) or resolved == Path.home().resolve():

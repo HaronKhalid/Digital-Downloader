@@ -37,7 +37,6 @@ def ensure_ffmpeg() -> None:
 
 
 def build_pyinstaller() -> Path:
-def build_pyinstaller() -> Path:
     """Run PyInstaller to create dist/DigitalDownloader/."""
     print(">> Running PyInstaller build for Digital Downloader...")
     DIST.mkdir(parents=True, exist_ok=True)

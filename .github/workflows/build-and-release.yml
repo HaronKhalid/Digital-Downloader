@@ -138,7 +138,14 @@ jobs:
       - name: Copy & Rename APKs
         run: |
           mkdir -p release-apks
-          find android/app/build/outputs/apk -name "*.apk" -exec cp {} release-apks/ \;
+          if [ -f "android/app/build/outputs/apk/release/app-release.apk" ]; then
+            cp android/app/build/outputs/apk/release/app-release.apk release-apks/DigitalDownloader-v1.0.0.apk
+          elif [ -f "android/app/build/outputs/apk/release/app-release-unsigned.apk" ]; then
+            cp android/app/build/outputs/apk/release/app-release-unsigned.apk release-apks/DigitalDownloader-v1.0.0.apk
+          fi
+          if [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
+            cp android/app/build/outputs/apk/debug/app-debug.apk release-apks/DigitalDownloader-debug.apk
+          fi
           ls -la release-apks/
 
       - name: Upload Android Artifacts
@@ -149,12 +156,12 @@ jobs:
           retention-days: 14
 
   # -------------------------------------------------------------
-  # 4. GitHub Release (Published on Tags or Manual Dispatch)
+  # 4. GitHub Release (Published on Tags, Main Branch, or Dispatch)
   # -------------------------------------------------------------
   release:
     name: Publish GitHub Release
     needs: [build-windows, build-android]
-    if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.publish_release == 'true'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v') || github.event.inputs.publish_release == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -191,6 +198,7 @@ jobs:
         with:
           tag_name: ${{ steps.get_tag.outputs.TAG_NAME }}
           name: "Digital Downloader ${{ steps.get_tag.outputs.TAG_NAME }}"
+          make_latest: true
           body: |
             ### 🚀 Digital Downloader - Modern Cross-Platform Media Downloader
 
@@ -198,7 +206,7 @@ jobs:
 
             #### 📦 Downloads:
             - **Windows**: `DigitalDownloader-windows-x64.zip` (standalone desktop app, no FFmpeg or Python install required)
-            - **Android**: `app-debug.apk` / `app-release-unsigned.apk` (install on Android phones & tablets with native share intent support)
+            - **Android APK**: `DigitalDownloader-v1.0.0.apk` / `DigitalDownloader-debug.apk` (install on Android phones & tablets with native share intent support)
 
             #### ✨ Key Features:
             - **Universal Mode**: Automatic support for all media sources out-of-the-box.

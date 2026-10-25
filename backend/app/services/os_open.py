@@ -14,16 +14,21 @@ from pathlib import Path
 
 def open_in_os(path: Path, *, select: bool = False) -> None:
     """Open ``path`` with the default application, or reveal it in the file manager when ``select``."""
-    target = str(path)
+    target_path = Path(path).resolve()
     if sys.platform == "win32":
         if select:
-            subprocess.Popen(["explorer", f"/select,{target}"])  # argument list, no shell
+            folder = target_path if target_path.is_dir() else target_path.parent
+            norm_folder = os.path.normpath(str(folder))
+            try:
+                subprocess.Popen(["explorer.exe", norm_folder])
+            except Exception:
+                os.startfile(norm_folder)
         else:
-            os.startfile(target)  # noqa: S606 - path validated by the caller
+            os.startfile(os.path.normpath(str(target_path)))  # noqa: S606 - path validated by the caller
     elif sys.platform == "darwin":
-        subprocess.Popen(["open", "-R", target] if select else ["open", target])
+        subprocess.Popen(["open", "-R", str(target_path)] if select else ["open", str(target_path)])
     else:
         subprocess.Popen(
-            ["xdg-open", str(path.parent if select else path)],
+            ["xdg-open", str(target_path.parent if select else target_path)],
             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True,
         )

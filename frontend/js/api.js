@@ -12,10 +12,40 @@ export class ApiError extends Error {
   }
 }
 
+export function getBackendBaseUrl() {
+  if (window.AndroidBridge && typeof window.AndroidBridge.getBackendUrl === "function") {
+    try {
+      const bridgeUrl = window.AndroidBridge.getBackendUrl();
+      if (bridgeUrl) return bridgeUrl.replace(/\/+$/, "");
+    } catch (_) {}
+  }
+  const stored = localStorage.getItem("digital_downloader_backend_url") || localStorage.getItem("linkfetch_backend_url");
+  if (stored) return stored.replace(/\/+$/, "");
+  return "";
+}
+
+export function setBackendBaseUrl(url) {
+  const clean = (url || "").trim().replace(/\/+$/, "");
+  if (clean) {
+    localStorage.setItem("digital_downloader_backend_url", clean);
+    localStorage.setItem("linkfetch_backend_url", clean);
+  } else {
+    localStorage.removeItem("digital_downloader_backend_url");
+    localStorage.removeItem("linkfetch_backend_url");
+  }
+  if (window.AndroidBridge && typeof window.AndroidBridge.setBackendUrl === "function") {
+    try {
+      window.AndroidBridge.setBackendUrl(clean);
+    } catch (_) {}
+  }
+}
+
 async function request(method, path, body) {
+  const base = getBackendBaseUrl();
+  const url = base ? `${base}${path}` : path;
   let response;
   try {
-    response = await fetch(path, {
+    response = await fetch(url, {
       method,
       cache: "no-store",
       headers: { "Content-Type": "application/json", "X-Session-Token": token },
@@ -24,7 +54,7 @@ async function request(method, path, body) {
   } catch {
     throw new ApiError(
       "BACKEND_UNREACHABLE",
-      "The local backend isn't responding. Check that the application is still running.",
+      "The backend isn't responding. Check that the server is running and the URL is reachable.",
       0,
     );
   }
@@ -55,7 +85,8 @@ export const api = {
   getJob: (id) => request("GET", `/api/jobs/${encodeURIComponent(id)}`),
   listJobs: () => request("GET", "/api/jobs"),
   cancelJob: (id) => request("POST", `/api/jobs/${encodeURIComponent(id)}/cancel`),
-  openJob: (id, action) => request("POST", `/api/jobs/${encodeURIComponent(id)}/open`, { action }),
+  openJob: (id, action = "file") => request("POST", `/api/jobs/${encodeURIComponent(id)}/open`, { action: action || "file" }),
+  openJobFolder: (id) => request("POST", `/api/jobs/${encodeURIComponent(id)}/open`, { action: "folder" }),
   history: (limit = 50) => request("GET", `/api/history?limit=${encodeURIComponent(limit)}`),
   getHistory: (id) => request("GET", `/api/history/${encodeURIComponent(id)}`),
   deleteHistory: (id) => request("DELETE", `/api/history/${encodeURIComponent(id)}`),

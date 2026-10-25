@@ -14,6 +14,14 @@ from .file_service import PathSafetyError, validate_output_directory
 logger = logging.getLogger("app.settings")
 
 
+POPULAR_DOMAINS = (
+    "youtube.com,youtu.be,instagram.com,instagr.am,facebook.com,fb.watch,fb.com,"
+    "tiktok.com,twitter.com,x.com,reddit.com,pinterest.com,pin.it,vimeo.com,"
+    "soundcloud.com,twitch.tv,threads.net,linkedin.com,dailymotion.com,bilibili.com,"
+    "archive.org,streamable.com,bandcamp.com,tumblr.com,snapchat.com,bsky.app"
+)
+
+
 class SettingsService:
     def __init__(self, db_path: Path, settings: Settings) -> None:
         self._db_path = Path(db_path)
@@ -64,8 +72,13 @@ class SettingsService:
     def update_output_directory(self, raw_path: str) -> Path:
         if not raw_path or not raw_path.strip():
             raise AppError(ErrorCode.INVALID_REQUEST, "Output directory cannot be empty.")
+        p = raw_path.strip()
+        if p.startswith("~"):
+            p = str(Path(p).expanduser())
+        elif p.lower().startswith(("downloads\\", "downloads/")):
+            p = str((Path.home() / Path(p)).resolve())
         try:
-            resolved = validate_output_directory(raw_path.strip())
+            resolved = validate_output_directory(p)
             resolved.mkdir(parents=True, exist_ok=True)
         except PathSafetyError as exc:
             raise AppError(ErrorCode.INVALID_REQUEST, str(exc)) from exc
@@ -110,8 +123,7 @@ class SettingsService:
     def set_universal_mode(self, enabled: bool) -> frozenset[str]:
         if enabled:
             return self.update_allowed_domains(["*"])
-        from ..core.config import DEFAULT_SOURCE_DOMAINS
-        return self.update_allowed_domains(DEFAULT_SOURCE_DOMAINS.split(","))
+        return self.update_allowed_domains(POPULAR_DOMAINS.split(","))
 
     def get_cookies_status(self) -> dict:
         cookies_file = self._settings.cookies_path

@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class CreateJobRequest(BaseModel):
@@ -8,6 +8,15 @@ class CreateJobRequest(BaseModel):
     url: str = Field(min_length=1, max_length=4096)
     format_id: str = Field(min_length=1, max_length=100)
     output_format: str | None = Field(default=None, max_length=10)
+    target_format: str | None = Field(default=None, max_length=10)
+
+    @model_validator(mode="after")
+    def _normalize_output(self) -> "CreateJobRequest":
+        if not self.output_format and self.target_format:
+            self.output_format = self.target_format
+        if self.output_format == "":
+            self.output_format = None
+        return self
 
 
 class CreateJobResponse(BaseModel):

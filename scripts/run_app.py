@@ -62,7 +62,7 @@ def open_browser_when_ready(port: int, max_wait: float = 10.0) -> None:
 def main() -> None:
     port = int(os.environ.get("PORT", "8000"))
     print("=" * 60)
-    print(" Personal Media - Standalone Desktop App")
+    print(" Digital Downloader - Standalone Desktop App")
     print(f" Running at http://127.0.0.1:{port}")
     print(" FFmpeg binary is bundled and ready.")
     print(" Press Ctrl+C in this window to stop.")

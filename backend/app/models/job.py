@@ -40,12 +40,18 @@ class InvalidTransition(Exception):
     pass
 
 
+import itertools
+
+_seq_counter = itertools.count()
+
+
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
 class Job:
     def __init__(self, *, url: str, title: str, format_id: str, output_format: str | None) -> None:
+        self.sequence_num: int = next(_seq_counter)
         self.id = str(uuid.uuid4())
         self.url = url
         self.title = title

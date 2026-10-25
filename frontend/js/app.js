@@ -1,5 +1,5 @@
-import { api, ApiError } from "./api.js";
-import { initJobs, resumeIfRunning } from "./jobs.js";
+import { api, ApiError, getBackendBaseUrl, setBackendBaseUrl } from "./api.js";
+import { initJobs, resumeIfRunning, hidePanel } from "./jobs.js";
 import { hideMedia, renderMedia } from "./media.js";
 import {
   applyTheme,
@@ -39,7 +39,8 @@ function checkLocally(raw) {
 
 async function analyze(event) {
   event.preventDefault();
-  const problem = checkLocally(els.input.value);
+  const url = (els.input.value || "").trim();
+  const problem = checkLocally(url);
   if (problem) {
     hideMedia();
     showNotice(problem === EMPTY_MESSAGE ? "info" : "error", problem);
@@ -51,7 +52,7 @@ async function analyze(event) {
   setBusy(true);
   showNotice("busy", "Analyzing media…");
   try {
-    const analysis = await api.analyze(els.input.value);
+    const analysis = await api.analyze(url);
     renderMedia(analysis);
     showNotice("success", "Choose a format and start processing.");
   } catch (error) {
@@ -109,6 +110,12 @@ async function loadHistory() {
         }
       },
       onFolder: async (id) => {
+        if (window.AndroidBridge && typeof window.AndroidBridge.openDownloadsFolder === "function") {
+          try {
+            window.AndroidBridge.openDownloadsFolder();
+            return;
+          } catch (_) {}
+        }
         try {
           await api.openHistory(id, "folder");
         } catch (err) {
@@ -247,6 +254,18 @@ async function start() {
     els.refreshHistory.addEventListener("click", loadHistory);
   }
 
+  if (els.closeMediaCard) {
+    els.closeMediaCard.addEventListener("click", () => {
+      hideMedia();
+    });
+  }
+
+  if (els.closeJobPanel) {
+    els.closeJobPanel.addEventListener("click", () => {
+      hidePanel();
+    });
+  }
+
   if (els.universalMode) {
     els.universalMode.addEventListener("change", async (e) => {
       const enabled = e.target.checked;
@@ -342,11 +361,60 @@ async function start() {
     loadHistory();
   });
 
+  const backendUrlInput = document.getElementById("backend-url-input");
+  const saveBackendUrlBtn = document.getElementById("save-backend-url-button");
+  const backendUrlMsg = document.getElementById("backend-url-message");
+
+  if (backendUrlInput) {
+    backendUrlInput.value = getBackendBaseUrl();
+  }
+  if (saveBackendUrlBtn && backendUrlInput) {
+    saveBackendUrlBtn.addEventListener("click", () => {
+      setBackendBaseUrl(backendUrlInput.value);
+      if (backendUrlMsg) {
+        backendUrlMsg.textContent = "Backend URL saved. Testing connection…";
+      }
+      api.health()
+        .then(() => {
+          if (backendUrlMsg) backendUrlMsg.textContent = "Connected successfully!";
+          setStatus("ok", "Connected");
+          showNotice("success", "Connected to Digital Downloader server.");
+        })
+        .catch(() => {
+          if (backendUrlMsg) backendUrlMsg.textContent = "Could not reach server. Verify address and try again.";
+          setStatus("error", "Cannot reach server");
+        });
+    });
+  }
+
+  // Handle shared URLs from Android Share Intent or external shortcuts
+  window.handleSharedUrl = (sharedUrl) => {
+    if (!sharedUrl || typeof sharedUrl !== "string") return;
+    const clean = sharedUrl.trim();
+    if (!clean) return;
+    els.input.value = clean;
+    syncClearButton();
+    if (window.AndroidBridge?.vibrate) {
+      window.AndroidBridge.vibrate();
+    }
+    analyze(new Event("submit"));
+  };
+
+  // Check on startup if Android bridge has a shared URL waiting
+  if (window.AndroidBridge?.getSharedUrl) {
+    try {
+      const pending = window.AndroidBridge.getSharedUrl();
+      if (pending) {
+        window.handleSharedUrl(pending);
+      }
+    } catch (_) {}
+  }
+
   try {
     await api.health();
   } catch {
     setStatus("error", "Backend offline");
-    showNotice("error", "The local backend isn't responding. Check that the application is still running.");
+    showNotice("error", "The backend isn't responding. Check that the server is running.");
     return;
   }
 

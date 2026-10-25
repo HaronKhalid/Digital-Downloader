@@ -20,3 +20,15 @@ dist/
 build/
 *.spec
 e2e/shots/
+scratch/
+
+# Android build outputs & caches
+.gradle/
+android/.gradle/
+android/build/
+android/app/build/
+android/app/src/main/assets/
+*.apk
+release-apks/
+release-assets/
+

@@ -18,6 +18,8 @@ import logging
 import re
 import subprocess
 import sys
+import urllib.parse
+import urllib.request
 from pathlib import Path
 from typing import Callable
 
@@ -86,6 +88,12 @@ def map_error(stderr: str) -> AppError:
         )
     if any(k in text for k in ("http error 404", "http error 410", "not found", "does not exist", "unavailable", "removed", "deleted")):
         return AppError(ErrorCode.MEDIA_NOT_AVAILABLE, "That media is no longer available at this address.", reason="not_found")
+    if any(k in text for k in ("ip address is blocked", "statuscode: 10204", "10204", "slardarwaf", "tiktok block")):
+        return AppError(
+            ErrorCode.MEDIA_NOT_AVAILABLE,
+            "TikTok restricted access from this network. Add your cookies in Settings ⚙️ or try again.",
+            reason="ip_blocked",
+        )
     if "timed out" in text or "timeout" in text:
         return AppError(ErrorCode.TIMEOUT, "The website took too long to respond.", reason="timeout")
     return AppError(
@@ -203,6 +211,17 @@ def normalize_info(info: object, *, source_id: str, source_label: str, url: str)
     )
 
 
+def is_youtube_url(url: str) -> bool:
+    try:
+        host = urllib.parse.urlsplit(url).netloc.lower().split(":")[0]
+        return any(
+            host == d or host.endswith("." + d)
+            for d in ("youtube.com", "youtu.be", "youtube-nocookie.com")
+        )
+    except Exception:
+        return False
+
+
 class YtDlpSource(MediaSource):
     id = "ytdlp"
     label = "Web media"
@@ -221,6 +240,7 @@ class YtDlpSource(MediaSource):
         self._runner = runner or default_runner
         self._timeout = timeout
         self._base_command = list(base_command) if base_command else [sys.executable, "-m", "yt_dlp"]
+        self._fallback_urls: dict[tuple[str, str], str] = {}
 
     def can_handle(self, url: ValidatedURL) -> bool:
         host = url.host
@@ -238,7 +258,11 @@ class YtDlpSource(MediaSource):
             return ["--cookies", str(default_file)]
         return ["--no-cookies"]
 
-    def _impersonate_args(self) -> list[str]:
+    def _impersonate_args(self, url: str | None = None) -> list[str]:
+        # Never impersonate desktop Chrome for YouTube: Google detects anomalous TLS/botguard fingerprints
+        # on googlevideo/player API and responds with bot verification / HTTP 403 Forbidden.
+        if url and is_youtube_url(url):
+            return []
         if importlib.util.find_spec("curl_cffi") is not None:
             return ["--impersonate", "chrome"]
         return []
@@ -249,31 +273,135 @@ class YtDlpSource(MediaSource):
             *self._base_command,
             "--ignore-config", "--no-plugin-dirs", "--no-cache-dir", "--no-exec",
             *self._cookie_args(),
-            *self._impersonate_args(),
+            *self._impersonate_args(url),
             "--dump-single-json", "--no-playlist", "--no-warnings", "--no-progress",
             "--socket-timeout", "15", "--retries", "2", "--extractor-retries", "2",
             "--", url,
         ]
+
+    def _try_tiktok_fallback(self, url: str) -> MediaInfo | None:
+        try:
+            target_url = url
+            if any(h in url for h in ("vt.tiktok.com", "vm.tiktok.com")):
+                try:
+                    req = urllib.request.Request(
+                        url,
+                        headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"},
+                    )
+                    with urllib.request.urlopen(req, timeout=8) as resp:
+                        resolved = resp.geturl()
+                        if "video" in resolved or "tiktok.com" in resolved:
+                            target_url = resolved
+                except Exception:
+                    pass
+
+            api_url = f"https://www.tikwm.com/api/?url={urllib.parse.quote(target_url, safe='')}"
+            req = urllib.request.Request(
+                api_url,
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"},
+            )
+            with urllib.request.urlopen(req, timeout=12) as resp:
+                if resp.status != 200:
+                    return None
+                data = json.loads(resp.read().decode("utf-8", "replace"))
+
+            if data.get("code") != 0 or not isinstance(data.get("data"), dict):
+                return None
+
+            info_data = data["data"]
+            title = info_data.get("title") or "TikTok Video"
+            title = title.strip()[:MAX_TITLE] if isinstance(title, str) and title.strip() else "TikTok Video"
+            duration = _positive_int(info_data.get("duration"))
+            cover = info_data.get("cover") or info_data.get("origin_cover")
+            size = _positive_int(info_data.get("size"))
+
+            formats: list[MediaFormat] = []
+            play_url = info_data.get("play")
+            if play_url and isinstance(play_url, str):
+                formats.append(
+                    MediaFormat(
+                        id="tikwm_play",
+                        type="video",
+                        container="mp4",
+                        resolution=None,
+                        has_audio=True,
+                        filesize=size,
+                        filesize_approximate=False,
+                        label="HD Video (No Watermark) · MP4",
+                    )
+                )
+                self._fallback_urls[("tikwm_play", url)] = play_url
+
+            music_url = info_data.get("music")
+            if music_url and isinstance(music_url, str):
+                formats.append(
+                    MediaFormat(
+                        id="tikwm_music",
+                        type="audio",
+                        container="mp3",
+                        resolution=None,
+                        has_audio=True,
+                        filesize=None,
+                        filesize_approximate=False,
+                        label="Original Audio · MP3",
+                    )
+                )
+                self._fallback_urls[("tikwm_music", url)] = music_url
+
+            if not formats:
+                return None
+
+            logger.info("extracted TikTok media using resilient fallback", extra={"operation": "tiktok_fallback", "title": title})
+            return MediaInfo(
+                source_id=self.id,
+                source_label=self.label,
+                url=url,
+                title=title,
+                duration=duration,
+                formats=tuple(formats),
+                thumbnail_url=cover if isinstance(cover, str) and cover.startswith("https://") else None,
+            )
+        except Exception as exc:
+            logger.warning("tiktok fallback extractor failed: %s", exc)
+            return None
 
     def analyze(self, url: ValidatedURL) -> MediaInfo:
         available, _, message = detect_ytdlp()
         if not available:
             raise AppError(ErrorCode.SOURCE_UNAVAILABLE, message or INSTALL_HINT, reason="ytdlp_missing")
 
+        is_tiktok = any(url.host == d or url.host.endswith("." + d) for d in ("tiktok.com", "vt.tiktok.com", "vm.tiktok.com"))
+
         code, out, err = self._runner(self.build_command(url.url), self._timeout)
         if code != 0:
+            err_text = err.decode("utf-8", "replace")
             logger.warning(
                 "extractor failed",
-                extra={"operation": "ytdlp", "status": "failed", "reason": redact_text(err.decode("utf-8", "replace"))[:300]},
+                extra={"operation": "ytdlp", "status": "failed", "reason": redact_text(err_text)[:300]},
             )
-            raise map_error(err.decode("utf-8", "replace"))
+            if is_tiktok:
+                fallback = self._try_tiktok_fallback(url.url)
+                if fallback is not None:
+                    return fallback
+            raise map_error(err_text)
         if len(out) > MAX_OUTPUT_BYTES:
             raise AppError(ErrorCode.SOURCE_UNAVAILABLE, "The website returned more data than expected.", reason="output_too_large")
         try:
             info = json.loads(out.decode("utf-8", "replace"))
         except ValueError:
+            if is_tiktok:
+                fallback = self._try_tiktok_fallback(url.url)
+                if fallback is not None:
+                    return fallback
             raise AppError(ErrorCode.SOURCE_UNAVAILABLE, "The website returned data in an unexpected format.", reason="bad_json") from None
-        return normalize_info(info, source_id=self.id, source_label=self.label, url=url.url)
+        try:
+            return normalize_info(info, source_id=self.id, source_label=self.label, url=url.url)
+        except AppError:
+            if is_tiktok:
+                fallback = self._try_tiktok_fallback(url.url)
+                if fallback is not None:
+                    return fallback
+            raise
 
     # ------------------------------------------------------------------ download
 
@@ -286,7 +414,7 @@ class YtDlpSource(MediaSource):
             *self._base_command,
             "--ignore-config", "--no-plugin-dirs", "--no-cache-dir", "--no-exec",
             *self._cookie_args(),
-            *self._impersonate_args(),
+            *self._impersonate_args(url),
             "--no-playlist", "--no-warnings", "--no-mtime", "--newline",
             "--socket-timeout", "15", "--retries", "2", "--fragment-retries", "2",
             "--max-filesize", str(int(ctx.max_bytes)),
@@ -303,6 +431,17 @@ class YtDlpSource(MediaSource):
         if not available:
             raise AppError(ErrorCode.SOURCE_UNAVAILABLE, message or INSTALL_HINT, reason="ytdlp_missing")
 
+        target_url = url.url
+        target_fmt_id = fmt.id
+        if fmt.id.startswith("tikwm_"):
+            stream_url = self._fallback_urls.get((fmt.id, url.url))
+            if not stream_url:
+                self._try_tiktok_fallback(url.url)
+                stream_url = self._fallback_urls.get((fmt.id, url.url))
+            if stream_url:
+                target_url = stream_url
+                target_fmt_id = "mp4" if fmt.type == "video" else "best"
+
         def on_line(line: str) -> None:
             progress = parse_progress_line(line)
             if progress is not None:
@@ -312,7 +451,7 @@ class YtDlpSource(MediaSource):
         env.update({"PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1"})
         try:
             result = run_controlled(
-                self.build_download_command(url.url, fmt.id, dest_dir, part, ctx),
+                self.build_download_command(target_url, target_fmt_id, dest_dir, part, ctx),
                 env=env, cancel=ctx.cancel, timeout=ctx.timeout, on_line=on_line,
             )
         except ProcessTimeout:

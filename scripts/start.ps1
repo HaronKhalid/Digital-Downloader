@@ -1,4 +1,4 @@
-# Starts Personal Media on http://127.0.0.1:8000 (loopback only) and opens the browser.
+# Starts Digital Downloader on http://127.0.0.1:8000 (loopback only) and opens the browser.
 param(
     [switch]$Reload,
     [switch]$NoBrowser
@@ -36,5 +36,5 @@ if (-not $NoBrowser) {
 $args = @("-m", "uvicorn", "backend.app.main:app", "--host", "127.0.0.1", "--port", $port)
 if ($Reload) { $args += "--reload" }
 
-Write-Host "Personal Media running at $url (press Ctrl+C to stop)"
+Write-Host "Digital Downloader running at $url (press Ctrl+C to stop)"
 & $py @args

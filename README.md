@@ -1,16 +1,16 @@
-# Personal Media
+# Digital Downloader
 
-A local-first utility for analyzing and downloading media that you own or are authorized to download. It runs entirely on your computer: a FastAPI backend bound to `127.0.0.1` and a browser UI served by that same backend.
+A modern, fast cross-platform utility for analyzing and downloading media from YouTube, TikTok, Instagram, Twitter/X, Facebook, direct links, and 1,000+ supported sites. It runs locally on your computer (FastAPI backend + responsive web UI) and on Android with native share-target integration.
 
-> **Status: All Phases (1–9) Complete.** Paste a link, analyze available streams, select quality/format, and download with live progress, real-time cancellation, FFmpeg transcode/merge/remux, and instant Open file / Folder actions.
+> **Status: All Phases Complete.** Paste any link, analyze available streams, select quality/format (from 4K/1080p to audio-only), and download with live progress, real-time cancellation, FFmpeg transcode/merge/remux, and instant Open file / Folder actions.
 >
 > **Complete features included:**
-> - **Phase 6 (History & Settings):** Completed downloads persist across restarts in SQLite with "Open file" and "Folder" buttons; Settings modal allows dynamically changing the output directory and checking dependency health.
-> - **Phase 7 (Security Hardening):** Strict file permissions (`0o700` directories, `0o600` DB), no shell execution (`shell=False`), loopback binding guardrails, CSRF/session tokens, malformed-input sweep, and process-cleanup stress testing.
-> - **Phase 8 (Polish):** Dark & Light theme switcher, keyboard navigation, focus trap in dialogs, ARIA announcements, and graceful empty/error states.
-> - **Phase 9 (Packaging):** Windows standalone distribution with `PersonalMedia.exe` and bundled FFmpeg/FFprobe binaries so end users don't need to install anything.
->
-> **Supported sources:** direct media links (`.mp4`, `.mp3`, etc.), `archive.org`, and websites supported by yt-dlp.
+> - **Universal Mode:** Automatic support for all media sources out of the box with zero configuration.
+> - **Quality & Format Selection:** Choose from highest 4K/2K/1080p down to 144p or extract audio (MP3/M4A/AAC).
+> - **Cross-Platform:** Standalone Windows desktop app (`DigitalDownloader.exe`) and Android APK with Share Target support.
+> - **History & Settings:** Persistent SQLite download history with "Open file" and "Folder" shortcuts; customize output directory.
+> - **Security Hardened:** Strict file permissions, safe non-shell execution (`shell=False`), loopback binding guardrails, and CSRF protection.
+> - **Modern Brand Design:** Featuring Digital Takhleeq typography (Montserrat headings & Manrope body) and sleek light/dark themes.
 
 **Use only with content you own or have permission to download.** The application does not and will not bypass DRM, authentication, paywalls or CAPTCHAs.
 
@@ -27,20 +27,49 @@ scripts\setup.ps1      # once: creates .venv, installs dependencies, configures 
 scripts\start.ps1      # starts http://127.0.0.1:8000 and opens your browser
 ```
 
-## Building Standalone Windows Package (Phase 9)
+## Cross-Platform Application (Desktop & Mobile)
 
-To build the standalone `PersonalMedia.exe` and release zip with FFmpeg bundled:
+Digital Downloader can be packaged and run across both desktop and mobile platforms:
+
+- **Windows Desktop Application (`.exe`)**: Standalone portable app with bundled FFmpeg and Python runtime into `DigitalDownloader-windows-x64.zip`. No prerequisites required.
+- **Android Mobile Application (`.apk`)**: Native Android APK with system share-target integration (tap "Share" in YouTube, TikTok, Instagram, Twitter/X to analyze immediately), MediaStore download saving, and mobile-optimized touch controls.
+
+## GitHub Actions CI/CD Workflow
+
+The repository includes an automated GitHub Actions workflow at [`.github/workflows/build-and-release.yml`](.github/workflows/build-and-release.yml):
+
+- **Automated Testing**: Runs the complete unit test suite on Python 3.12 before compiling any binaries.
+- **Windows Build Job**: Compiles `DigitalDownloader.exe` and bundles standalone FFmpeg binaries into `DigitalDownloader-windows-x64.zip`.
+- **Android Build Job**: Bundles mobile web assets and compiles the Android APK using Gradle & Android SDK.
+- **Automated Releases**: When a tag like `v1.0.0` is pushed (or triggered via manual workflow dispatch), creates a GitHub Release and attaches both the Windows `.zip` and Android `.apk` files.
+
+### Pushing to GitHub & Publishing Releases
+
+1. Initialize or link your GitHub remote repository:
+   ```bash
+   git remote add origin https://github.com/HaronKhalid/Digital-Downloader.git
+   git branch -M main
+   git push -u origin main
+   ```
+2. To create an official cross-platform release with downloadable Windows and Android assets, create and push a tag:
+   ```bash
+   git tag v1.0.0
+   git push origin v1.0.0
+   ```
+   Or go to **Actions** -> **Build & Release Digital Downloader** in your GitHub repository and click **Run workflow**.
+
+## Local Packaging (Windows)
+
+To build the standalone Windows release locally:
 
 ```powershell
-scripts\package.ps1    # produces dist/PersonalMedia/ and dist/PersonalMedia-windows-x64.zip
+scripts\package.ps1    # produces dist/DigitalDownloader-windows-x64.zip
 ```
 
-Check prerequisites any time with `scripts\check_dependencies.ps1`.
-
-Try the real analysis pipeline on one link without starting the server:
+To sync web assets into the Android project locally:
 
 ```powershell
-.venv\Scripts\python.exe scripts\analyze_url.py https://archive.org/details/<item>
+python scripts\sync_android_assets.py
 ```
 
 ## Manual start
@@ -56,7 +85,13 @@ Always pass `--host 127.0.0.1`. The application refuses to start if `HOST` in th
 
 ## Where files go
 
-Finished files are saved to `~/Downloads/PersonalMedia` (override with `OUTPUT_DIRECTORY` in `.env`). Work in progress lives in `data/temp/job-<id>/` and is deleted when a job ends, however it ends. Leftovers from a crash are removed at the next start. A file with an existing name is never overwritten (`Name (1).mp4`).
+Finished files are saved to your chosen output folder. You can configure this directly in **Settings**:
+- Short paths like `downloads\Music` or `downloads/Videos` (auto-expanded to your user profile directory).
+- Home shortcuts like `~/Downloads` or full absolute paths (e.g. `D:\Media`).
+- Default: `~/Downloads/PersonalMedia`.
+- Mobile (Android): Saved directly to the device's native `Downloads` directory via Android DownloadManager.
+
+Work in progress lives in `data/temp/job-<id>/` and is deleted when a job ends, however it ends. Leftovers from a crash are removed at the next start. A file with an existing name is never overwritten (`Name (1).mp4`).
 
 ## Tests
 

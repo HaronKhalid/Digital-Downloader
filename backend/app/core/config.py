@@ -19,12 +19,7 @@ LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 _DOMAIN = re.compile(r"^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$")
 
 
-DEFAULT_SOURCE_DOMAINS = (
-    "youtube.com,youtu.be,instagram.com,instagr.am,facebook.com,fb.watch,fb.com,"
-    "tiktok.com,twitter.com,x.com,reddit.com,pinterest.com,pin.it,vimeo.com,"
-    "soundcloud.com,twitch.tv,threads.net,linkedin.com,dailymotion.com,bilibili.com,"
-    "archive.org,streamable.com,bandcamp.com,tumblr.com,snapchat.com,bsky.app"
-)
+DEFAULT_SOURCE_DOMAINS = "*"
 
 
 class ConfigError(RuntimeError):

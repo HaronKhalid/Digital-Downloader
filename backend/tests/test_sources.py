@@ -3,6 +3,7 @@ import json
 import pytest
 
 from backend.app.core.errors import AppError, ErrorCode
+from backend.app.models.media import MediaFormat, MediaInfo
 from backend.app.services.http_client import HttpResponse
 from backend.app.services.source_service import SourceService, sniff_image_type
 from backend.app.services.sources.direct import DirectFileSource
@@ -328,3 +329,48 @@ def test_thumbnail_request_is_size_limited_and_goes_through_the_safe_client():
 def test_sniffing_ignores_server_claims():
     assert sniff_image_type(JPEG) == "image/jpeg" and sniff_image_type(b"RIFF\0\0\0\0WEBPVP8 ") == "image/webp"
     assert sniff_image_type(b"GIF89a....") == "image/gif" and sniff_image_type(b"<svg") is None
+
+
+def test_tiktok_fallback_when_ytdlp_blocked(monkeypatch):
+    src = YtDlpSource(frozenset({"*"}))
+    monkeypatch.setattr(src, "_runner", lambda cmd, timeout: (1, b"", b"ERROR: [TikTok] 123: Your IP address is blocked from accessing this post"))
+    
+    mock_info = MediaInfo(
+        source_id="ytdlp",
+        source_label="Web media",
+        url="https://www.tiktok.com/@user/video/7431989732726377734",
+        title="TikTok Test Title",
+        duration=15,
+        formats=(
+            MediaFormat(
+                id="tikwm_play",
+                type="video",
+                container="mp4",
+                resolution=None,
+                has_audio=True,
+                filesize=1000,
+                filesize_approximate=False,
+                label="HD Video (No Watermark) · MP4",
+            ),
+        ),
+        thumbnail_url="https://example.com/cover.jpg",
+    )
+    monkeypatch.setattr(src, "_try_tiktok_fallback", lambda url: mock_info)
+    
+    info = src.analyze(vurl("https://www.tiktok.com/@user/video/7431989732726377734"))
+    assert info.title == "TikTok Test Title"
+    assert info.formats[0].id == "tikwm_play"
+
+
+def test_tiktok_ip_block_maps_to_clear_message():
+    err = map_error("ERROR: [TikTok] 123: Your IP address is blocked from accessing this post")
+    assert err.code is ErrorCode.MEDIA_NOT_AVAILABLE
+    assert err.reason == "ip_blocked"
+    assert "tiktok restricted access" in err.message.lower()
+
+
+def test_ytdlp_source_universal_mode_handles_any_domain():
+    src = YtDlpSource(frozenset({"*"}))
+    assert src.can_handle(vurl("https://random-video-site.org/watch?v=123"))
+    assert src.can_handle(vurl("https://tiktok.com/@user/video/123"))
+    assert src.can_handle(vurl("https://vt.tiktok.com/ZSjR/"))

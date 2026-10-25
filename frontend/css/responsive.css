@@ -1,18 +1,109 @@
-@media (max-width: 40rem) {
-  .page { padding: 2rem 1.1rem 2.5rem; gap: 3rem; }
-  .topbar { padding: 0.75rem 1rem; }
-  .command-bar { flex-direction: column; align-items: stretch; padding: 0.75rem; }
-  .command-bar input { padding: 0 0.35rem; }
-  .command-actions { justify-content: flex-end; }
-  .status { font-size: 0.82rem; padding: 0; min-width: 0; }
-  .status span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Responsive layout optimizations for tablet and mobile */
+
+@media (max-width: 960px) {
+  .page {
+    padding: 2rem 1.25rem 3rem;
+  }
+
+  .app-layout {
+    grid-template-columns: 1fr;
+    gap: 2.25rem;
+  }
+
+  .download-window {
+    position: static;
+    margin-top: 0;
+  }
+
+  /* On screens where single-column is used, show the download card right under the input */
+  .app-layout {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .app-left {
+    display: contents;
+  }
+
+  .hero {
+    order: 1;
+  }
+
+  .app-right {
+    order: 2;
+    width: 100%;
+  }
+
+  .history {
+    order: 3;
+    width: 100%;
+    margin-top: 2.25rem;
+  }
 }
 
-@media (max-width: 26rem) {
-  .command-actions .button { flex: 1; }
-}
+@media (max-width: 600px) {
+  .topbar {
+    padding: 0.9rem 1.15rem;
+  }
 
-@media (max-width: 40rem) {
-  .media-card { grid-template-columns: minmax(0, 1fr); padding: 1rem; gap: 1rem; }
-  .media-thumb { max-width: 22rem; }
+  .brand-name {
+    font-size: 1.15rem;
+  }
+
+  .hero h1 {
+    font-size: 2.15rem;
+    line-height: 1.12;
+  }
+
+  .lede {
+    font-size: 0.975rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .command-bar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0.75rem;
+    border-radius: var(--radius-card);
+  }
+
+  .command-bar input {
+    height: 2.65rem;
+    padding: 0 0.25rem;
+    font-size: 0.975rem;
+  }
+
+  .command-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.4rem;
+  }
+
+  .analyze-cta {
+    flex: 1;
+  }
+
+  .choices {
+    grid-template-columns: 1fr;
+  }
+
+  .history-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .history-main {
+    width: 100%;
+  }
+
+  .history-actions {
+    justify-content: flex-end;
+    width: 100%;
+  }
+
+  .window-card {
+    padding: 1.25rem;
+  }
 }

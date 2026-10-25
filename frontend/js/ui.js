@@ -38,10 +38,16 @@ export const els = {
   cookiesSaveMessage: $("cookies-save-message"),
   dependencyList: $("dependency-list"),
   refreshDependencies: $("refresh-dependencies"),
+
+  // Download Window elements
+  cardEmptyState: $("card-empty-state"),
+  closeMediaCard: $("close-media-card"),
+  closeJobPanel: $("close-job-panel"),
   card: $("media-card"),
   thumbImg: $("media-thumb-img"),
   thumbFallback: $("media-thumb-fallback"),
   title: $("media-title"),
+  mediaSpecs: $("media-specs"),
   source: $("media-source"),
   duration: $("media-duration"),
   size: $("media-size"),
@@ -50,8 +56,18 @@ export const els = {
   output: $("output-select"),
   download: $("download-button"),
   downloadHint: $("download-hint"),
+
+  // Job panel elements
   panel: $("job-panel"),
+  jobHeadTitle: $("job-head-title"),
+  jobCompleteCheck: $("job-complete-check"),
+  jobSaveConfirmation: $("job-save-confirmation"),
+  jobSaveText: $("job-save-text"),
+  jobProgressSection: $("job-progress-section"),
+  jobThumbImg: $("job-thumb-img"),
+  jobThumbFallback: $("job-thumb-fallback"),
   jobTitle: $("job-title"),
+  jobSpecs: $("job-specs"),
   jobStage: $("job-stage"),
   jobProgress: $("job-progress"),
   jobBar: $("job-progress-bar"),
@@ -65,6 +81,7 @@ export const els = {
   jobOpenFolder: $("job-open-folder"),
   jobRetry: $("job-retry"),
   jobAnother: $("job-another"),
+
   historyEmpty: $("history-empty"),
   historyList: $("history-list"),
   refreshHistory: $("refresh-history-button"),
@@ -90,6 +107,12 @@ export function setBusy(busy) {
 
 export function syncClearButton() {
   els.clear.hidden = els.input.value.length === 0;
+}
+
+export function showEmptyWindow() {
+  if (els.cardEmptyState) els.cardEmptyState.hidden = false;
+  if (els.card) els.card.hidden = true;
+  if (els.panel) els.panel.hidden = true;
 }
 
 // ----------------------------------------------------------------- Theme
@@ -188,9 +211,24 @@ export function renderHistory(items, { onOpen, onFolder, onDelete }) {
     const main = document.createElement("div");
     main.className = "history-main";
 
-    const badge = document.createElement("span");
-    badge.className = "format-badge";
-    badge.textContent = item.format_label || "FILE";
+    // Media Thumbnail box
+    const thumbBox = document.createElement("div");
+    thumbBox.className = "history-thumb-box";
+    const thumbSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    thumbSvg.setAttribute("viewBox", "0 0 24 24");
+    thumbSvg.setAttribute("width", "20");
+    thumbSvg.setAttribute("height", "20");
+    thumbSvg.setAttribute("fill", "none");
+    thumbSvg.setAttribute("stroke", "currentColor");
+    thumbSvg.setAttribute("stroke-width", "2");
+    thumbSvg.setAttribute("stroke-linecap", "round");
+    thumbSvg.setAttribute("stroke-linejoin", "round");
+    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    rect.setAttribute("x", "2"); rect.setAttribute("y", "2"); rect.setAttribute("width", "20"); rect.setAttribute("height", "20"); rect.setAttribute("rx", "4");
+    const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+    poly.setAttribute("points", "10 8 16 12 10 16 10 8");
+    thumbSvg.append(rect, poly);
+    thumbBox.appendChild(thumbSvg);
 
     const info = document.createElement("div");
     info.className = "history-info";
@@ -204,10 +242,10 @@ export function renderHistory(items, { onOpen, onFolder, onDelete }) {
     meta.className = "history-meta";
 
     const parts = [];
+    if (item.format_label) parts.push(item.format_label.toUpperCase());
     if (item.file_size > 0) parts.push(formatSize(item.file_size));
     const relTime = formatRelativeTime(item.completed_at);
     if (relTime) parts.push(relTime);
-    if (item.source) parts.push(item.source);
     meta.textContent = parts.join(" · ");
 
     if (!item.file_exists) {
@@ -218,15 +256,31 @@ export function renderHistory(items, { onOpen, onFolder, onDelete }) {
     }
 
     info.append(title, meta);
-    main.append(badge, info);
+    main.append(thumbBox, info);
 
     const actions = document.createElement("div");
     actions.className = "history-actions";
 
+    // Completed badge
+    const badge = document.createElement("span");
+    badge.className = "history-status-badge completed";
+    const checkSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    checkSvg.setAttribute("viewBox", "0 0 24 24");
+    checkSvg.setAttribute("width", "14");
+    checkSvg.setAttribute("height", "14");
+    checkSvg.setAttribute("fill", "currentColor");
+    const checkPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    checkPath.setAttribute("fill-rule", "evenodd");
+    checkPath.setAttribute("clip-rule", "evenodd");
+    checkPath.setAttribute("d", "M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.707 7.707a1 1 0 0 0-1.414-1.414L10 13.586l-2.293-2.293a1 1 0 0 0-1.414 1.414l3 3a1 1 0 0 0 1.414 0l6-6z");
+    checkSvg.appendChild(checkPath);
+    const badgeText = document.createTextNode(" Completed");
+    badge.append(checkSvg, badgeText);
+
     const openFileBtn = document.createElement("button");
     openFileBtn.type = "button";
     openFileBtn.className = "button small primary";
-    openFileBtn.textContent = "Open file";
+    openFileBtn.textContent = "Open";
     openFileBtn.disabled = !item.file_exists;
     openFileBtn.addEventListener("click", () => onOpen(item.id));
 
@@ -244,7 +298,7 @@ export function renderHistory(items, { onOpen, onFolder, onDelete }) {
     deleteBtn.textContent = "✕";
     deleteBtn.addEventListener("click", () => onDelete(item.id));
 
-    actions.append(openFileBtn, openFolderBtn, deleteBtn);
+    actions.append(badge, openFileBtn, openFolderBtn, deleteBtn);
     li.append(main, actions);
     return li;
   });

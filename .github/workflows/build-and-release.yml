@@ -1,0 +1,206 @@
+name: Build & Release Digital Downloader (Desktop & Mobile)
+
+on:
+  push:
+    branches: [main, master]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: 'Publish as a GitHub Release'
+        required: false
+        type: boolean
+        default: false
+      release_tag:
+        description: 'Release tag (e.g. v1.0.0)'
+        required: false
+        type: string
+        default: 'v1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  # -------------------------------------------------------------
+  # 1. Quality & Unit Tests
+  # -------------------------------------------------------------
+  test:
+    name: Test & Lint Backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install system FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements-dev.txt
+
+      - name: Run Pytest Suite
+        run: |
+          pytest -v
+
+  # -------------------------------------------------------------
+  # 2. Build Windows Desktop App (.exe + zip)
+  # -------------------------------------------------------------
+  build-windows:
+    name: Build Windows Desktop App
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements-dev.txt
+
+      - name: Install Bundled FFmpeg Binaries
+        run: |
+          python scripts/install_ffmpeg.py
+
+      - name: Build Windows Executable & Package
+        run: |
+          python scripts/package_app.py
+
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DigitalDownloader-windows-x64
+          path: dist/DigitalDownloader-windows-x64.zip
+          retention-days: 14
+
+  # -------------------------------------------------------------
+  # 3. Build Android Mobile App (APK)
+  # -------------------------------------------------------------
+  build-android:
+    name: Build Android Mobile APK
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Sync Web Assets to Android Project
+        run: |
+          python scripts/sync_android_assets.py
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Build Android APK
+        working-directory: ./android
+        run: |
+          chmod +x gradlew || true
+          ./gradlew assembleDebug --stacktrace || gradle assembleDebug --stacktrace
+          # Also try assembleRelease (generates unsigned release apk)
+          ./gradlew assembleRelease --stacktrace || gradle assembleRelease --stacktrace || true
+
+      - name: Copy & Rename APKs
+        run: |
+          mkdir -p release-apks
+          find android/app/build/outputs/apk -name "*.apk" -exec cp {} release-apks/ \;
+          ls -la release-apks/
+
+      - name: Upload Android Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: DigitalDownloader-android-apks
+          path: release-apks/*.apk
+          retention-days: 14
+
+  # -------------------------------------------------------------
+  # 4. GitHub Release (Published on Tags or Manual Dispatch)
+  # -------------------------------------------------------------
+  release:
+    name: Publish GitHub Release
+    needs: [build-windows, build-android]
+    if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.publish_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Windows Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: DigitalDownloader-windows-x64
+          path: release-assets/
+
+      - name: Download Android Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: DigitalDownloader-android-apks
+          path: release-assets/
+
+      - name: List Release Files
+        run: ls -la release-assets/
+
+      - name: Determine Tag Name
+        id: get_tag
+        run: |
+          if [ -n "${{ github.event.inputs.release_tag }}" ]; then
+            echo "TAG_NAME=${{ github.event.inputs.release_tag }}" >> $GITHUB_OUTPUT
+          elif [[ "$GITHUB_REF" =~ ^refs/tags/ ]]; then
+            echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "TAG_NAME=v1.0.0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.get_tag.outputs.TAG_NAME }}
+          name: "Digital Downloader ${{ steps.get_tag.outputs.TAG_NAME }}"
+          body: |
+            ### 🚀 Digital Downloader - Modern Cross-Platform Media Downloader
+
+            Download media from YouTube, TikTok, Instagram, Twitter/X, Facebook, and 1,000+ supported sites with zero configuration.
+
+            #### 📦 Downloads:
+            - **Windows**: `DigitalDownloader-windows-x64.zip` (standalone desktop app, no FFmpeg or Python install required)
+            - **Android**: `app-debug.apk` / `app-release-unsigned.apk` (install on Android phones & tablets with native share intent support)
+
+            #### ✨ Key Features:
+            - **Universal Mode**: Automatic support for all media sources out-of-the-box.
+            - **Quality Selection**: Pick from maximum 4K/1080p resolution down to 144p or audio only.
+            - **Android Share Target**: Share videos directly from TikTok, Instagram, or YouTube into Digital Downloader.
+            - **Live Progress & History**: Real-time progress bar, speed, ETA, and download history.
+          files: release-assets/*
+          draft: false
+          prerelease: false

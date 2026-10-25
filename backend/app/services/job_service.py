@@ -179,7 +179,7 @@ class JobService:
     def list(self, limit: int = 20) -> list[Job]:
         with self._lock:
             jobs = [r.job for r in self._records.values()]
-        return sorted(jobs, key=lambda j: j.created_at, reverse=True)[:limit]
+        return sorted(jobs, key=lambda j: (j.created_at, getattr(j, "sequence_num", 0)), reverse=True)[:limit]
 
     def cancel(self, job_id: str) -> Job:
         job = self.get(job_id)

@@ -1,8 +1,7 @@
 // Download lifecycle in the UI: start, poll, cancel, open, retry.
-// All text from the server is assigned with textContent.
 import { api, ApiError } from "./api.js";
 import { formatEta, formatSize, formatSpeed } from "./format.js";
-import { getSelection, syncDownloadButton } from "./media.js";
+import { getCurrentAnalysis, getSelection, syncDownloadButton } from "./media.js";
 import { state } from "./state.js";
 import { els, showNotice } from "./ui.js";
 
@@ -13,7 +12,7 @@ const friendly = (error) => (error instanceof ApiError ? error.message : "Someth
 
 function setProgress(percent) {
   const value = Math.max(0, Math.min(100, Number.isFinite(percent) ? percent : 0));
-  els.jobBar.style.setProperty("--progress", String(value)); // CSSOM is allowed by our CSP; inline style attributes are not
+  els.jobBar.style.setProperty("--progress", `${value}%`);
   els.jobProgress.setAttribute("aria-valuenow", String(Math.floor(value)));
   els.jobPercent.textContent = `${Math.floor(value)}%`;
 }
@@ -26,17 +25,45 @@ function showButtons(visible) {
     retry: els.jobRetry,
     another: els.jobAnother,
   };
-  for (const [name, button] of Object.entries(all)) button.hidden = !visible.includes(name);
+  for (const [name, button] of Object.entries(all)) {
+    if (button) button.hidden = !visible.includes(name);
+  }
 }
 
 export function hidePanel() {
   els.panel.hidden = true;
+  if (els.cardEmptyState && (!els.card || els.card.hidden)) {
+    els.cardEmptyState.hidden = false;
+  }
 }
 
 function showPanel(title) {
-  els.jobTitle.textContent = title || "Download";
+  if (els.cardEmptyState) els.cardEmptyState.hidden = true;
+  if (els.card) els.card.hidden = true;
   els.panel.hidden = false;
-  els.panel.scrollIntoView({ block: "nearest", behavior: "auto" });
+
+  els.jobTitle.textContent = title || "Download";
+  if (els.jobHeadTitle) els.jobHeadTitle.textContent = "Downloading...";
+  if (els.jobCompleteCheck) els.jobCompleteCheck.hidden = true;
+  if (els.jobSaveConfirmation) els.jobSaveConfirmation.hidden = true;
+  if (els.jobProgressSection) els.jobProgressSection.hidden = false;
+
+  // Sync thumbnail and specs from analysis
+  const analysis = getCurrentAnalysis();
+  if (els.jobThumbImg && analysis?.thumbnail) {
+    els.jobThumbImg.src = analysis.thumbnail;
+    els.jobThumbImg.hidden = false;
+    if (els.jobThumbFallback) els.jobThumbFallback.hidden = true;
+  } else if (els.jobThumbFallback) {
+    if (els.jobThumbImg) els.jobThumbImg.hidden = true;
+    els.jobThumbFallback.hidden = false;
+  }
+
+  if (els.jobSpecs && els.mediaSpecs) {
+    els.jobSpecs.textContent = els.mediaSpecs.textContent;
+  }
+
+  els.panel.scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 
 function render(job) {
@@ -46,31 +73,68 @@ function render(job) {
   setProgress(job.progress);
 
   const total = job.total_bytes;
-  els.jobDownloaded.textContent =
-    job.downloaded_bytes > 0 ? (total ? `${formatSize(job.downloaded_bytes)} of ${formatSize(total)}` : formatSize(job.downloaded_bytes)) : "—";
+  const downloadedText = job.downloaded_bytes > 0
+    ? (total ? `${formatSize(job.downloaded_bytes)} / ${formatSize(total)}` : formatSize(job.downloaded_bytes))
+    : `Downloading... ${Math.floor(job.progress)}%`;
+  
+  els.jobDownloaded.textContent = downloadedText;
   els.jobSpeed.textContent = job.status === "downloading" ? formatSpeed(job.speed_bps) : "—";
   els.jobEta.textContent = job.status === "downloading" ? formatEta(job.eta_seconds) : "—";
 
   switch (job.status) {
     case "queued":
     case "downloading":
+      if (els.jobHeadTitle) els.jobHeadTitle.textContent = "Downloading...";
+      if (els.jobCompleteCheck) els.jobCompleteCheck.hidden = true;
+      if (els.jobSaveConfirmation) els.jobSaveConfirmation.hidden = true;
+      if (els.jobProgressSection) els.jobProgressSection.hidden = false;
       els.jobMessage.textContent = "";
       showButtons(["cancel"]);
       break;
     case "processing":
+      if (els.jobHeadTitle) els.jobHeadTitle.textContent = "Processing...";
+      if (els.jobCompleteCheck) els.jobCompleteCheck.hidden = true;
+      if (els.jobSaveConfirmation) els.jobSaveConfirmation.hidden = true;
+      if (els.jobProgressSection) els.jobProgressSection.hidden = false;
       els.jobMessage.textContent = "Processing media…";
       showButtons(["cancel"]);
       break;
     case "completed":
-      els.jobMessage.textContent = `Download completed. Saved as ${job.filename}`;
+      state.lastJobId = job.id;
+      if (els.jobOpenFile) els.jobOpenFile.dataset.jobId = job.id;
+      if (els.jobOpenFolder) els.jobOpenFolder.dataset.jobId = job.id;
+      if (els.jobHeadTitle) els.jobHeadTitle.textContent = "Download Complete";
+      if (els.jobCompleteCheck) els.jobCompleteCheck.hidden = false;
+      if (els.jobSaveConfirmation) els.jobSaveConfirmation.hidden = false;
+      if (els.jobSaveText) {
+        const outDir = els.outputDirectory?.value?.trim();
+        if (outDir) {
+          const parts = outDir.split(/[\\/]/).filter(Boolean);
+          const shortName = parts.length > 1 ? parts.slice(-2).join("\\") : (parts[0] || "Downloads");
+          els.jobSaveText.textContent = `Saved to ${shortName}`;
+        } else {
+          els.jobSaveText.textContent = "File saved to your device";
+        }
+      }
+      if (els.jobProgressSection) els.jobProgressSection.hidden = true;
+      els.jobMessage.textContent = "";
+      if (els.jobAnother) els.jobAnother.textContent = "Download another file";
       showButtons(["openFile", "openFolder", "another"]);
       document.dispatchEvent(new CustomEvent("pm:job-completed", { detail: job }));
       break;
     case "failed":
+      if (els.jobHeadTitle) els.jobHeadTitle.textContent = "Download Failed";
+      if (els.jobCompleteCheck) els.jobCompleteCheck.hidden = true;
+      if (els.jobSaveConfirmation) els.jobSaveConfirmation.hidden = true;
+      if (els.jobProgressSection) els.jobProgressSection.hidden = true;
       els.jobMessage.textContent = job.error?.message ?? "The download failed.";
       showButtons(["retry", "another"]);
       break;
     case "cancelled":
+      if (els.jobHeadTitle) els.jobHeadTitle.textContent = "Download Cancelled";
+      if (els.jobCompleteCheck) els.jobCompleteCheck.hidden = true;
+      if (els.jobSaveConfirmation) els.jobSaveConfirmation.hidden = true;
+      if (els.jobProgressSection) els.jobProgressSection.hidden = true;
       els.jobMessage.textContent = "Download cancelled.";
       showButtons(["retry", "another"]);
       break;
@@ -88,6 +152,7 @@ function renderLost(message) {
   els.panel.dataset.state = "failed";
   els.jobStage.textContent = "Stopped";
   els.jobMessage.textContent = message;
+  if (els.jobProgressSection) els.jobProgressSection.hidden = true;
   showButtons(["retry", "another"]);
 }
 
@@ -139,61 +204,102 @@ async function begin(request) {
     showNotice("info", "Download started.");
     poll(jobId);
   } catch (error) {
-    showNotice("error", friendly(error));
     syncDownloadButton();
+    showNotice("error", friendly(error));
   }
 }
 
 export function startDownload() {
   const selection = getSelection();
   if (!selection) return;
-  begin({ url: selection.url, format_id: selection.format.id, output_format: selection.output });
+  const payload = {
+    url: selection.url,
+    format_id: selection.format.id,
+  };
+  if (selection.output && typeof selection.output === "string" && selection.output.trim()) {
+    payload.output_format = selection.output.trim().toLowerCase();
+  }
+  begin(payload);
 }
 
-async function cancel() {
+export async function cancelDownload() {
   if (!state.activeJobId) return;
   els.jobCancel.disabled = true;
-  els.jobStage.textContent = "Cancelling…";
+  showNotice("busy", "Stopping download…");
   try {
     await api.cancelJob(state.activeJobId);
   } catch (error) {
-    if (!(error instanceof ApiError && error.status === 409)) els.jobMessage.textContent = friendly(error);
+    showNotice("error", friendly(error));
   }
 }
 
-async function open(action) {
+export async function openFile(evt) {
+  const jobId = evt?.currentTarget?.dataset?.jobId || state.activeJobId || state.lastJobId;
+  if (!jobId) {
+    showNotice("error", "No completed file found to open.");
+    return;
+  }
   try {
-    await api.openJob(state.lastJobId, action);
+    showNotice("busy", "Opening file…");
+    await api.openJob(jobId, "file");
+    showNotice("success", "Opened file in default player.");
   } catch (error) {
-    els.jobMessage.textContent = friendly(error);
+    showNotice("error", friendly(error));
   }
 }
 
-/** After a page reload, pick up a download that is still running on the backend. */
+export async function openFolder(evt) {
+  if (window.AndroidBridge && typeof window.AndroidBridge.openDownloadsFolder === "function") {
+    try {
+      window.AndroidBridge.openDownloadsFolder();
+      return;
+    } catch (_) {}
+  }
+  const jobId = evt?.currentTarget?.dataset?.jobId || state.activeJobId || state.lastJobId;
+  if (!jobId) {
+    showNotice("error", "No completed file found to open.");
+    return;
+  }
+  try {
+    showNotice("busy", "Opening downloads folder…");
+    await api.openJobFolder(jobId);
+    showNotice("success", "Opened folder in file manager.");
+  } catch (error) {
+    showNotice("error", friendly(error));
+  }
+}
+
+export function retryDownload() {
+  if (state.lastRequest) begin(state.lastRequest);
+}
+
+export function downloadAnother() {
+  hidePanel();
+  document.dispatchEvent(new CustomEvent("pm:new-download"));
+}
+
 export async function resumeIfRunning() {
   try {
-    const { jobs } = await api.listJobs();
-    const running = jobs.find((j) => !TERMINAL.has(j.status));
-    if (!running) return;
-    state.activeJobId = running.job_id;
-    state.lastJobId = running.job_id;
-    showPanel(running.title);
-    render(running);
-    syncDownloadButton();
-    poll(running.job_id);
+    const jobs = await api.listJobs();
+    const active = jobs.find((j) => !TERMINAL.has(j.status));
+    if (active) {
+      state.activeJobId = active.id;
+      state.lastJobId = active.id;
+      syncDownloadButton();
+      showPanel(active.title);
+      render(active);
+      poll(active.id);
+    }
   } catch {
-    /* nothing to resume */
+    /* backend down or initial connection */
   }
 }
 
 export function initJobs() {
   els.download.addEventListener("click", startDownload);
-  els.jobCancel.addEventListener("click", cancel);
-  els.jobOpenFile.addEventListener("click", () => open("file"));
-  els.jobOpenFolder.addEventListener("click", () => open("folder"));
-  els.jobRetry.addEventListener("click", () => state.lastRequest && begin(state.lastRequest));
-  els.jobAnother.addEventListener("click", () => {
-    hidePanel();
-    document.dispatchEvent(new CustomEvent("pm:new-download"));
-  });
+  els.jobCancel.addEventListener("click", cancelDownload);
+  els.jobOpenFile.addEventListener("click", openFile);
+  els.jobOpenFolder.addEventListener("click", openFolder);
+  els.jobRetry.addEventListener("click", retryDownload);
+  els.jobAnother.addEventListener("click", downloadAnother);
 }

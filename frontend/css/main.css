@@ -1,63 +1,105 @@
 :root {
-  --ground: #1b1e24;
-  --surface: #242932;
-  --raised: #2d3340;
-  --line: #3a424f;
-  --text: #ebe8e1;
-  --muted: #a2a9b4;
-  --accent: #f0b057;
-  --accent-ink: #251a06;
-  --ok: #86cba3;
-  --warn: #f0b057;
-  --bad: #f08a82;
+  /* High-DPI modern design tokens (LinkFetch design system) */
+  --ground: #f8fafc;
+  --surface: #ffffff;
+  --surface-subtle: #f1f5f9;
+  --line: #e2e8f0;
+  --line-hover: #cbd5e1;
+  --text: #0f172a;
+  --muted: #64748b;
+  
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-active: #1e40af;
+  --accent-ink: #ffffff;
+  --accent-subtle: rgba(37, 99, 235, 0.08);
+  
+  --ok: #16a34a;
+  --ok-hover: #15803d;
+  --ok-subtle: rgba(22, 163, 74, 0.08);
+  --warn: #d97706;
+  --bad: #ef4444;
 
-  --font-text: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
-  --font-display: "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-body: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-sans: var(--font-body);
+  
+  --radius-sm: 6px;
+  --radius-control: 10px;
+  --radius-card: 16px;
+  --radius-pill: 9999px;
+  
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -2px rgba(0, 0, 0, 0.04), 0 12px 28px -4px rgba(0, 0, 0, 0.05);
+  --shadow-focus: 0 0 0 3px rgba(37, 99, 235, 0.18);
 
-  --radius-control: 8px;
-  --radius-panel: 14px;
-  --measure: 46rem;
+  color-scheme: light dark;
+}
+
+[data-theme="dark"] {
+  --ground: #0b0f17;
+  --surface: #131b2a;
+  --surface-subtle: #1e293b;
+  --line: #222f43;
+  --line-hover: #334155;
+  --text: #f8fafc;
+  --muted: #94a3b8;
+  
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --accent-active: #1d4ed8;
+  --accent-ink: #ffffff;
+  --accent-subtle: rgba(59, 130, 246, 0.12);
+  
+  --ok: #22c55e;
+  --ok-hover: #16a34a;
+  --ok-subtle: rgba(34, 197, 94, 0.14);
+  --warn: #f59e0b;
+  --bad: #f87171;
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-focus: 0 0 0 3px rgba(59, 130, 246, 0.25);
   color-scheme: dark;
 }
 
-[data-theme="light"] {
-  --ground: #f4f6f8;
-  --surface: #ffffff;
-  --raised: #e9edf2;
-  --line: #d2d7e0;
-  --text: #181d25;
-  --muted: #5e6878;
-  --accent: #d97706;
-  --accent-ink: #ffffff;
-  --ok: #16a34a;
-  --warn: #d97706;
-  --bad: #dc2626;
-  color-scheme: light;
-}
-
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) {
-    --ground: #f4f6f8;
-    --surface: #ffffff;
-    --raised: #e9edf2;
-    --line: #d2d7e0;
-    --text: #181d25;
-    --muted: #5e6878;
-    --accent: #d97706;
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0b0f17;
+    --surface: #131b2a;
+    --surface-subtle: #1e293b;
+    --line: #222f43;
+    --line-hover: #334155;
+    --text: #f8fafc;
+    --muted: #94a3b8;
+    
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --accent-active: #1d4ed8;
     --accent-ink: #ffffff;
-    --ok: #16a34a;
-    --warn: #d97706;
-    --bad: #dc2626;
-    color-scheme: light;
+    --accent-subtle: rgba(59, 130, 246, 0.12);
+    
+    --ok: #22c55e;
+    --ok-hover: #16a34a;
+    --ok-subtle: rgba(34, 197, 94, 0.14);
+    --warn: #f59e0b;
+    --bad: #f87171;
+
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-focus: 0 0 0 3px rgba(59, 130, 246, 0.25);
+    color-scheme: dark;
   }
 }
 
 *, *::before, *::after { box-sizing: border-box; }
 
-/* Author display rules must never override the hidden attribute. */
 [hidden] { display: none !important; }
 
-html { -webkit-text-size-adjust: 100%; }
+html {
+  -webkit-text-size-adjust: 100%;
+  font-family: var(--font-sans);
+}
 
 body {
   margin: 0;
@@ -66,75 +108,155 @@ body {
   flex-direction: column;
   background: var(--ground);
   color: var(--text);
-  font-family: var(--font-text);
+  font-family: var(--font-sans);
   font-size: 1rem;
-  line-height: 1.55;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-h1, h2, h3, p, ul { margin: 0; }
+h1, h2, h3, h4, p, ul, dl, dd { margin: 0; }
 
-h1 {
+h1, h2, h3, h4 {
   font-family: var(--font-display);
-  font-size: clamp(2.1rem, 5vw, 3.4rem);
-  font-weight: 650;
-  line-height: 1.08;
   letter-spacing: -0.025em;
-  max-width: 17ch;
-}
-
-h2 { font-family: var(--font-display); font-size: 1.15rem; font-weight: 600; letter-spacing: -0.01em; }
-h3 { font-size: 0.95rem; font-weight: 600; color: var(--muted); }
-
-.page {
-  flex: 1;
-  width: 100%;
-  max-width: calc(var(--measure) + 4rem);
-  margin: 0 auto;
-  padding: clamp(2.5rem, 9vh, 6rem) 2rem 3rem;
-  display: grid;
-  gap: 4.5rem;
-  align-content: start;
-}
-
-.lede { margin-top: 1.1rem; max-width: 52ch; color: var(--muted); font-size: 1.075rem; }
-
-.topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.9rem 1.5rem;
-  border-bottom: 1px solid var(--line);
-}
-
-.brand { font-family: var(--font-display); font-weight: 650; letter-spacing: -0.01em; white-space: nowrap; }
-.topbar-actions { display: flex; align-items: center; gap: 0.5rem; }
-
-.footer { padding: 1.25rem 1.5rem 1.75rem; color: var(--muted); font-size: 0.875rem; text-align: center; }
-
-.visually-hidden {
-  position: absolute !important;
-  width: 1px; height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  white-space: nowrap;
 }
 
 .skip-link {
   position: absolute;
-  left: 1rem; top: -4rem;
-  padding: 0.6rem 0.9rem;
+  top: -3rem;
+  left: 1rem;
   background: var(--accent);
   color: var(--accent-ink);
-  border-radius: var(--radius-control);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-sm);
+  z-index: 100;
+  transition: top 0.2s ease;
+  text-decoration: none;
   font-weight: 600;
-  z-index: 10;
 }
-.skip-link:focus { top: 0.75rem; }
+.skip-link:focus { top: 1rem; }
 
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Header Topbar */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.15rem 2.5rem;
+  background: transparent;
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
 
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+  user-select: none;
+}
+
+.brand-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.brand-logo {
+  height: 28px;
+  width: auto;
+  max-width: 32px;
+  object-fit: contain;
+  flex-shrink: 0;
+  transition: opacity 150ms ease;
+}
+
+/* Light / Dark Mode logo switcher */
+.brand-logo.logo-dark {
+  display: block;
+}
+.brand-logo.logo-light {
+  display: none;
+}
+
+[data-theme="dark"] .brand-logo.logo-dark {
+  display: none;
+}
+[data-theme="dark"] .brand-logo.logo-light {
+  display: block;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .brand-logo.logo-dark {
+    display: none;
+  }
+  :root:not([data-theme="light"]) .brand-logo.logo-light {
+    display: block;
+  }
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Page Layout */
+.page {
+  flex: 1;
+  width: 100%;
+  max-width: 1560px;
+  margin: 0 auto;
+  padding: 3rem clamp(2rem, 4vw, 4.5rem) 4rem;
+}
+
+.app-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 580px) 1fr;
+  gap: clamp(2rem, 3.5vw, 4rem);
+  align-items: start;
+}
+
+.app-left {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 580px;
+}
+
+.app-right {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%;
+  min-height: 100%;
+}
+
+.download-window {
+  position: sticky;
+  top: 5.5rem;
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

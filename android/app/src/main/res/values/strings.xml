@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Digital Downloader</string>
+    <string name="download_saved">File saved to Downloads</string>
+    <string name="download_failed">Failed to save file</string>
+</resources>

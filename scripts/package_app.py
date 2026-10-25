@@ -1,11 +1,11 @@
-"""Phase 9: Windows Packaging and Bundling Script.
+"""Digital Downloader: Windows Packaging and Bundling Script.
 
-Bundles PersonalMedia into a standalone Windows distribution with FFmpeg
+Bundles Digital Downloader into a standalone Windows distribution with FFmpeg
 handled for the user, producing:
-  - dist/PersonalMedia/PersonalMedia.exe
-  - dist/PersonalMedia/bin/ffmpeg.exe + ffprobe.exe
-  - dist/PersonalMedia/frontend/
-  - dist/PersonalMedia-windows-x64.zip
+  - dist/DigitalDownloader/DigitalDownloader.exe
+  - dist/DigitalDownloader/bin/ffmpeg.exe + ffprobe.exe
+  - dist/DigitalDownloader/frontend/
+  - dist/DigitalDownloader-windows-x64.zip
 """
 
 from __future__ import annotations
@@ -37,10 +37,11 @@ def ensure_ffmpeg() -> None:
 
 
 def build_pyinstaller() -> Path:
-    """Run PyInstaller to create dist/PersonalMedia/."""
-    print(">> Running PyInstaller build...")
+def build_pyinstaller() -> Path:
+    """Run PyInstaller to create dist/DigitalDownloader/."""
+    print(">> Running PyInstaller build for Digital Downloader...")
     DIST.mkdir(parents=True, exist_ok=True)
-    target_dir = DIST / "PersonalMedia"
+    target_dir = DIST / "DigitalDownloader"
     if target_dir.exists():
         shutil.rmtree(target_dir, ignore_errors=True)
 
@@ -52,7 +53,7 @@ def build_pyinstaller() -> Path:
         "--clean",
         "--onedir",
         "--name",
-        "PersonalMedia",
+        "DigitalDownloader",
         "--distpath",
         str(DIST),
         "--workpath",
@@ -110,23 +111,23 @@ def post_process_distribution(target_dir: Path) -> None:
     # Write Quickstart guide
     readme = target_dir / "README.txt"
     readme.write_text(
-        "Personal Media - Standalone Windows Application\n"
-        "===============================================\n\n"
-        "1. Double-click PersonalMedia.exe to launch.\n"
+        "Digital Downloader - Standalone Windows Application\n"
+        "===================================================\n\n"
+        "1. Double-click DigitalDownloader.exe to launch.\n"
         "2. Your web browser will open automatically to:\n"
         "   http://127.0.0.1:8000\n\n"
         "Everything is bundled:\n"
         "- FFmpeg and FFprobe are included in bin/ (no separate installation needed).\n"
-        "- Downloads are safely stored in your Downloads/PersonalMedia folder.\n"
+        "- Downloads are safely stored in your Downloads/DigitalDownloader folder.\n"
         "- All media is checked, downloaded, and transcoded locally on this machine.\n\n"
-        "To stop the application, close the PersonalMedia command window or press Ctrl+C.\n",
+        "To stop the application, close the Digital Downloader command window or press Ctrl+C.\n",
         encoding="utf-8",
     )
 
 
 def create_zip_archive(target_dir: Path) -> Path:
-    """Create dist/PersonalMedia-windows-x64.zip."""
-    zip_path = DIST / "PersonalMedia-windows-x64.zip"
+    """Create dist/DigitalDownloader-windows-x64.zip."""
+    zip_path = DIST / "DigitalDownloader-windows-x64.zip"
     print(f">> Compressing release archive to {zip_path.name}...")
     if zip_path.exists():
         zip_path.unlink()
@@ -139,13 +140,13 @@ def create_zip_archive(target_dir: Path) -> Path:
                 zf.write(full_path, arcname=str(rel_path))
 
     size_mb = zip_path.stat().st_size / (1024 * 1024)
-    print(f">> Release archive built successfully: {zip_path} ({size_mb:.1f} MB)")
+    print(f">> Release archive built successfully: {zip_path.name} ({size_mb:.1f} MB)")
     return zip_path
 
 
 def main() -> None:
     print("=" * 60)
-    print(" Personal Media - Windows Package Builder (Phase 9)")
+    print(" Digital Downloader - Windows Package Builder")
     print("=" * 60)
     ensure_ffmpeg()
     target = build_pyinstaller()

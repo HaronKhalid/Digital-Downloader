@@ -63,6 +63,47 @@ Job object:
 
 Additional error codes: `FORMAT_NOT_AVAILABLE`, `DISK_SPACE_LOW`, `DOWNLOAD_FAILED`, `PROCESSING_FAILED`, `FFMPEG_NOT_FOUND`.
 
-## Planned
+## History
 
-`GET /api/history`, `GET|PUT /api/settings`.
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/api/history` | `{"items": [...]}` ordered by completion date descending (`limit` query param, default 50). |
+| GET | `/api/history/{id}` | Single history item with metadata and `file_exists` status. |
+| DELETE | `/api/history/{id}` | Deletes record from database (`{"deleted": true, "id": "..."}`). Does not delete user's downloaded media on disk. |
+| POST | `/api/history/{id}/open` | Body `{"action": "file" \| "folder"}`. Safely opens the file or reveals it in the file manager. |
+
+History item object:
+
+```json
+{
+  "id": "uuid",
+  "url": "https://...",
+  "title": "Example Video",
+  "filename": "Example_Video.mp4",
+  "file_size": 15420000,
+  "source": "YouTube",
+  "format_label": "MP4",
+  "completed_at": "2026-10-25T08:30:00Z",
+  "file_exists": true
+}
+```
+
+## Settings
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/api/settings` | Returns effective settings (`output_directory`, `allowed_source_domains`, `max_parallel_jobs`, `max_download_gb`, `log_level`). |
+| PUT | `/api/settings` | Body `{"output_directory": "..."}`. Validates path and saves to SQLite `app_settings` table. |
+
+Settings response object:
+
+```json
+{
+  "output_directory": "C:\\Users\\...\\Downloads\\PersonalMedia",
+  "allowed_source_domains": ["archive.org", "youtube.com"],
+  "max_parallel_jobs": 1,
+  "max_download_gb": 20,
+  "log_level": "INFO"
+}
+```
+

@@ -11,14 +11,16 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__
-from .api.routes import health, jobs, media, system
+from .api.routes import health, history, jobs, media, settings as settings_routes, system
 from .core.config import Settings, get_settings
 from .core.errors import register_exception_handlers
 from .core.logging import configure_logging
 from .core.security import LocalOnlyMiddleware
 from .services.download_service import DownloadService
+from .services.history_service import HistoryService
 from .services.job_service import AnalysisCache, JobService
 from .services.os_open import open_in_os
+from .services.settings_service import SettingsService
 from .services.source_service import SourceService, build_source_service
 from .services.file_service import cleanup_abandoned_temp, ensure_runtime_directories, validate_output_directory
 
@@ -30,6 +32,8 @@ def create_app(
     settings: Settings | None = None,
     source_service: SourceService | None = None,
     job_service: JobService | None = None,
+    history_service: HistoryService | None = None,
+    settings_service: SettingsService | None = None,
     opener=open_in_os,
 ) -> FastAPI:
     settings = settings or get_settings()
@@ -65,8 +69,14 @@ def create_app(
     app.state.session_token = session_token
     app.state.source_service = source_service or build_source_service(settings)
     app.state.analysis_cache = AnalysisCache()
+    app.state.history_service = history_service or HistoryService(settings.database_path)
+    app.state.settings_service = settings_service or SettingsService(settings.database_path, settings)
     app.state.job_service = job_service or JobService(
-        settings, app.state.source_service, DownloadService(settings), app.state.analysis_cache
+        settings,
+        app.state.source_service,
+        DownloadService(settings),
+        app.state.analysis_cache,
+        history=app.state.history_service,
     )
     app.state.opener = opener
 
@@ -82,6 +92,8 @@ def create_app(
     app.include_router(system.router)
     app.include_router(media.router)
     app.include_router(jobs.router)
+    app.include_router(history.router)
+    app.include_router(settings_routes.router)
 
     @app.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
     def index() -> HTMLResponse:

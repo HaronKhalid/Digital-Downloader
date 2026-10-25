@@ -72,10 +72,15 @@ def remove_job_dir(temp_root: Path, job_dir: Path) -> None:
 
 def validate_output_directory(path: str | Path) -> Path:
     """Validate a user-chosen output directory and return it resolved."""
+    p_str = str(path).strip()
+    if p_str.startswith(("\\\\", "//")):
+        raise PathSafetyError("Network shares and device namespaces are not permitted.")
     raw = Path(path).expanduser()
     if not raw.is_absolute():
         raise PathSafetyError("The output directory must be an absolute path.")
     resolved = raw.resolve()
+    if resolved.is_file():
+        raise PathSafetyError("The output directory cannot be an existing file.")
     if resolved == Path(resolved.anchor) or resolved == Path.home().resolve():
         raise PathSafetyError("Choose a dedicated folder, not a drive root or your home folder.")
     return resolved
@@ -97,6 +102,15 @@ def unique_destination(directory: Path, filename: str) -> Path:
 def ensure_runtime_directories(output: Path, temp: Path, database_file: Path) -> None:
     for directory in (output, temp, database_file.parent):
         directory.mkdir(parents=True, exist_ok=True)
+        try:
+            directory.chmod(0o700)
+        except (OSError, NotImplementedError):
+            pass
+    if database_file.is_file():
+        try:
+            database_file.chmod(0o600)
+        except (OSError, NotImplementedError):
+            pass
 
 
 def reserve_destination(directory: Path, filename: str) -> Path:

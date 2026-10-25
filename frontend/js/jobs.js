@@ -64,6 +64,7 @@ function render(job) {
     case "completed":
       els.jobMessage.textContent = `Download completed. Saved as ${job.filename}`;
       showButtons(["openFile", "openFolder", "another"]);
+      document.dispatchEvent(new CustomEvent("pm:job-completed", { detail: job }));
       break;
     case "failed":
       els.jobMessage.textContent = job.error?.message ?? "The download failed.";

@@ -7,6 +7,21 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
+# Sync User PATH changes (e.g. newly installed tools from winget) if not yet in current session
+$userPath = [System.Environment]::GetEnvironmentVariable("Path", "User")
+if ($userPath) {
+    foreach ($p in ($userPath -split ';')) {
+        if ($p -and (Test-Path $p) -and ($env:Path -split ';' -notcontains $p)) {
+            $env:Path = "$p;$env:Path"
+        }
+    }
+}
+
+$bin = Join-Path $root "bin"
+if (Test-Path $bin) {
+    $env:Path = "$bin;$env:Path"
+}
+
 $py = Join-Path $root ".venv\Scripts\python.exe"
 if (-not (Test-Path $py)) { throw "Virtual environment not found. Run scripts\setup.ps1 first." }
 

@@ -68,11 +68,19 @@ def _not_found() -> AppError:
 
 
 class JobService:
-    def __init__(self, settings: Settings, sources: SourceService, downloader: DownloadService, cache: AnalysisCache) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        sources: SourceService,
+        downloader: DownloadService,
+        cache: AnalysisCache,
+        history=None,
+    ) -> None:
         self._settings = settings
         self._sources = sources
         self._downloader = downloader
         self._cache = cache
+        self._history = history
         self._records: dict[str, JobRecord] = {}
         self._queue: queue.Queue[str | None] = queue.Queue()
         self._lock = threading.Lock()
@@ -113,6 +121,12 @@ class JobService:
             if record is None or record.job.status is not JobStatus.QUEUED:
                 continue  # cancelled while waiting
             self._downloader.run(record.job, record.source, record.url, record.info, record.plan)
+            if record.job.status is JobStatus.COMPLETED and self._history is not None:
+                try:
+                    format_label = getattr(record.plan, "output_ext", "").upper()
+                    self._history.record(record.job, source=getattr(record.source, "name", ""), format_label=format_label)
+                except Exception as exc:
+                    logger.error("failed to record job history: %s", exc)
             self._prune()
 
     def _prune(self) -> None:

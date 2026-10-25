@@ -27,6 +27,11 @@ if (-not (Test-Path ".env")) {
     Write-Host "Created .env from .env.example"
 }
 
+if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue) -and -not (Test-Path "bin\ffmpeg.exe")) {
+    Write-Host "Configuring FFmpeg binary..."
+    & $py "scripts\install_ffmpeg.py"
+}
+
 Write-Host ""
 & "$PSScriptRoot\check_dependencies.ps1"
 Write-Host ""

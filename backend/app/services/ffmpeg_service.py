@@ -18,9 +18,16 @@ _VERSION = re.compile(r"ffmpeg version (\S+)")
 INSTALL_HINT = "FFmpeg was not detected. Install FFmpeg, make sure it is on your PATH, and restart the application."
 
 
-def controlled_env() -> dict[str, str]:
+def controlled_env(executable: str | None = None) -> dict[str, str]:
     """Environment for child processes: only what FFmpeg needs, nothing sensitive."""
-    return {k: os.environ[k] for k in _ENV_ALLOWLIST if k in os.environ}
+    env = {k: os.environ[k] for k in _ENV_ALLOWLIST if k in os.environ}
+    if executable:
+        parent = os.path.dirname(executable)
+        if parent:
+            current = env.get("PATH", "")
+            if parent not in current:
+                env["PATH"] = f"{parent}{os.pathsep}{current}" if current else parent
+    return env
 
 
 @dataclass(frozen=True)
@@ -31,7 +38,7 @@ class FFmpegStatus:
 
 
 def detect_ffmpeg(timeout: float = 5.0) -> FFmpegStatus:
-    executable = shutil.which("ffmpeg")
+    executable = find_ffmpeg()
     if not executable:
         return FFmpegStatus(False, message=INSTALL_HINT)
     try:
@@ -40,7 +47,7 @@ def detect_ffmpeg(timeout: float = 5.0) -> FFmpegStatus:
             capture_output=True,
             text=True,
             timeout=timeout,
-            env=controlled_env(),
+            env=controlled_env(executable),
             check=False,
         )
     except (OSError, subprocess.SubprocessError):
@@ -52,4 +59,5 @@ def detect_ffmpeg(timeout: float = 5.0) -> FFmpegStatus:
 
 
 def find_ffmpeg() -> str | None:
-    return shutil.which("ffmpeg")
+    return os.environ.get("FFMPEG_PATH") or shutil.which("ffmpeg")
+

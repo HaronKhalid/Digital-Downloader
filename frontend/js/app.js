@@ -2,13 +2,18 @@ import { api, ApiError } from "./api.js";
 import { initJobs, resumeIfRunning } from "./jobs.js";
 import { hideMedia, renderMedia } from "./media.js";
 import {
+  applyTheme,
   els,
+  initTheme,
   renderDependencies,
   renderDependencyError,
+  renderHistory,
   setBusy,
+  setSettingsMessage,
   setStatus,
   showNotice,
   syncClearButton,
+  toggleTheme,
 } from "./ui.js";
 
 const EMPTY_MESSAGE = "Paste a media URL to begin.";
@@ -89,21 +94,116 @@ async function refreshDependencies() {
   }
 }
 
+async function loadHistory() {
+  try {
+    const res = await api.history(50);
+    renderHistory(res.items, {
+      onOpen: async (id) => {
+        try {
+          await api.openHistory(id, "file");
+        } catch (err) {
+          showNotice("error", err instanceof ApiError ? err.message : "Could not open file.");
+        }
+      },
+      onFolder: async (id) => {
+        try {
+          await api.openHistory(id, "folder");
+        } catch (err) {
+          showNotice("error", err instanceof ApiError ? err.message : "Could not open folder.");
+        }
+      },
+      onDelete: async (id) => {
+        try {
+          await api.deleteHistory(id);
+          await loadHistory();
+        } catch (err) {
+          showNotice("error", err instanceof ApiError ? err.message : "Could not delete history item.");
+        }
+      },
+    });
+  } catch {
+    // If backend isn't ready yet, history will be tried again on connection
+  }
+}
+
+async function loadSettings() {
+  try {
+    const data = await api.settings();
+    if (els.outputDirectory) {
+      els.outputDirectory.value = data.output_directory;
+    }
+    setSettingsMessage("", "");
+  } catch {
+    setSettingsMessage("error", "Could not load settings.");
+  }
+}
+
+async function saveSettings(e) {
+  if (e) e.preventDefault();
+  const dir = els.outputDirectory.value.trim();
+  if (!dir) {
+    setSettingsMessage("error", "Please enter a valid folder path.");
+    return;
+  }
+  setSettingsMessage("", "Saving…");
+  try {
+    const updated = await api.updateSettings(dir);
+    els.outputDirectory.value = updated.output_directory;
+    setSettingsMessage("ok", "Download folder updated successfully.");
+  } catch (err) {
+    setSettingsMessage("error", err instanceof ApiError ? err.message : "Could not save folder path.");
+  }
+}
+
 async function start() {
+  initTheme();
+
   els.form.addEventListener("submit", analyze);
   els.paste.addEventListener("click", pasteFromClipboard);
   els.clear.addEventListener("click", clearInput);
   els.input.addEventListener("input", () => {
-    hideMedia(); // the shown result no longer matches what is typed
+    hideMedia();
     syncClearButton();
   });
+
+  if (els.themeToggle) {
+    els.themeToggle.addEventListener("click", toggleTheme);
+  }
+  if (els.themeSelect) {
+    els.themeSelect.addEventListener("change", (e) => applyTheme(e.target.value));
+  }
+
   els.openSettings.addEventListener("click", () => {
     els.settings.showModal();
     refreshDependencies();
+    loadSettings();
   });
+  els.settings.addEventListener("close", () => {
+    els.openSettings.focus();
+  });
+
   els.refreshDependencies.addEventListener("click", refreshDependencies);
+  if (els.saveSettings) {
+    els.saveSettings.addEventListener("click", saveSettings);
+  }
+  if (els.outputDirectory) {
+    els.outputDirectory.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        saveSettings();
+      }
+    });
+  }
+
+  if (els.refreshHistory) {
+    els.refreshHistory.addEventListener("click", loadHistory);
+  }
+
   initJobs();
   document.addEventListener("pm:new-download", clearInput);
+  document.addEventListener("pm:job-completed", () => {
+    loadHistory();
+  });
 
   try {
     await api.health();
@@ -112,7 +212,9 @@ async function start() {
     showNotice("error", "The local backend isn't responding. Check that the application is still running.");
     return;
   }
+
   await refreshDependencies();
+  await loadHistory();
   await resumeIfRunning();
   els.input.focus();
 }

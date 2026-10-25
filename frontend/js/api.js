@@ -56,4 +56,10 @@ export const api = {
   listJobs: () => request("GET", "/api/jobs"),
   cancelJob: (id) => request("POST", `/api/jobs/${encodeURIComponent(id)}/cancel`),
   openJob: (id, action) => request("POST", `/api/jobs/${encodeURIComponent(id)}/open`, { action }),
+  history: (limit = 50) => request("GET", `/api/history?limit=${encodeURIComponent(limit)}`),
+  getHistory: (id) => request("GET", `/api/history/${encodeURIComponent(id)}`),
+  deleteHistory: (id) => request("DELETE", `/api/history/${encodeURIComponent(id)}`),
+  openHistory: (id, action) => request("POST", `/api/history/${encodeURIComponent(id)}/open`, { action }),
+  settings: () => request("GET", "/api/settings"),
+  updateSettings: (output_directory) => request("PUT", "/api/settings", { output_directory }),
 };

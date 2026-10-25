@@ -36,3 +36,19 @@ export function formatEta(seconds) {
   if (h > 0) return `${h} h ${String(m).padStart(2, "0")} min`;
   return `${m} min ${String(s).padStart(2, "0")} s`;
 }
+
+export function formatRelativeTime(isoString) {
+  if (!isoString) return "";
+  try {
+    const date = new Date(isoString);
+    const now = new Date();
+    const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
+    if (diffSec < 60) return "Just now";
+    if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
+    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+    if (diffSec < 172800) return "Yesterday";
+    return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  } catch {
+    return "";
+  }
+}

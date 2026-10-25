@@ -4,12 +4,17 @@ from __future__ import annotations
 
 import os
 import re
+import sys
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Mapping
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+if getattr(sys, "frozen", False):
+    REPO_ROOT = Path(sys._MEIPASS)
+else:
+    REPO_ROOT = Path(__file__).resolve().parents[3]
+
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 _DOMAIN = re.compile(r"^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$")
 
@@ -80,7 +85,7 @@ class Settings:
             ).expanduser(),
             temp_directory=Path(env.get("TEMP_DIRECTORY") or (data / "temp")).expanduser(),
             database_path=Path(env.get("DATABASE_PATH") or (data / "database" / "history.sqlite3")),
-            frontend_directory=REPO_ROOT / "frontend",
+            frontend_directory=Path(env.get("FRONTEND_DIRECTORY") or (REPO_ROOT / "frontend")),
             max_parallel_jobs=max_jobs,
             log_level=env.get("LOG_LEVEL", "INFO").strip().upper(),
             allowed_ports=frozenset({80, 443}),
@@ -90,8 +95,32 @@ class Settings:
         )
 
 
+def _sync_windows_path() -> None:
+    """Ensure PATH reflects user environment changes on Windows without needing a shell restart."""
+    if sys.platform != "win32":
+        return
+    try:
+        import winreg
+
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Environment") as key:
+            user_path, _ = winreg.QueryValueEx(key, "Path")
+            current = os.environ.get("PATH", "")
+            current_entries = {os.path.normcase(p) for p in current.split(os.pathsep) if p}
+            new_entries = [p for p in user_path.split(";") if p and os.path.normcase(p) not in current_entries]
+            if new_entries:
+                os.environ["PATH"] = os.pathsep.join(new_entries) + os.pathsep + current
+    except (OSError, ValueError):
+        pass
+
+
 def load_dotenv(path: Path | None = None) -> None:
     """Minimal .env reader (no dependency). Real environment variables win."""
+    _sync_windows_path()
+    bin_dir = REPO_ROOT / "bin"
+    if bin_dir.is_dir():
+        current = os.environ.get("PATH", "")
+        if str(bin_dir) not in current:
+            os.environ["PATH"] = f"{bin_dir}{os.pathsep}{current}" if current else str(bin_dir)
     path = path or REPO_ROOT / ".env"
     if not path.is_file():
         return
@@ -101,6 +130,7 @@ def load_dotenv(path: Path | None = None) -> None:
             continue
         key, _, value = line.partition("=")
         os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
 
 
 @lru_cache(maxsize=1)

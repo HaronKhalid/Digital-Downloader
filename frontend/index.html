@@ -21,7 +21,23 @@
         <span class="status-dot" aria-hidden="true"></span>
         <span id="status-text">Checking backend</span>
       </p>
-      <button type="button" class="icon-button" id="open-settings" aria-label="Open settings">
+      <button type="button" class="icon-button" id="theme-toggle" aria-label="Toggle theme" title="Toggle theme">
+        <svg id="theme-icon-sun" class="theme-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+        <svg id="theme-icon-moon" class="theme-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden>
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+      </button>
+      <button type="button" class="icon-button" id="open-settings" aria-label="Open settings" title="Settings">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="3"></circle>
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -107,9 +123,13 @@
       </div>
     </section>
 
-    <section class="history" aria-labelledby="history-title">
-      <h2 id="history-title">Recent downloads</h2>
-      <p class="empty">Nothing here yet. Finished downloads will appear in this list.</p>
+    <section class="history" id="history-section" aria-labelledby="history-title">
+      <div class="history-head">
+        <h2 id="history-title">Recent downloads</h2>
+        <button type="button" class="button quiet small" id="refresh-history-button">Refresh</button>
+      </div>
+      <p class="empty" id="history-empty">Nothing here yet. Finished downloads will appear in this list.</p>
+      <ul class="history-list" id="history-list" aria-live="polite"></ul>
     </section>
   </main>
 
@@ -120,6 +140,25 @@
   <dialog id="settings-dialog" aria-labelledby="settings-title">
     <form method="dialog" class="dialog-body">
       <h2 id="settings-title">Settings</h2>
+
+      <div class="field setting-field">
+        <label for="output-directory-input">Save media to folder</label>
+        <div class="input-with-button">
+          <input type="text" id="output-directory-input" autocomplete="off" spellcheck="false" placeholder="C:\Users\...\PersonalMedia">
+          <button type="button" class="button primary small" id="save-settings-button">Save</button>
+        </div>
+        <p class="field-hint" id="settings-save-message" role="status" aria-live="polite"></p>
+      </div>
+
+      <div class="field setting-field">
+        <label for="theme-select">Theme appearance</label>
+        <select id="theme-select">
+          <option value="system">System default</option>
+          <option value="dark">Dark</option>
+          <option value="light">Light</option>
+        </select>
+      </div>
+
       <h3>Dependencies</h3>
       <ul id="dependency-list" class="dependency-list" aria-live="polite">
         <li class="dependency" data-state="checking"><span class="dependency-name">Checking…</span></li>

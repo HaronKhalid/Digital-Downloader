@@ -203,6 +203,15 @@ def test_dependencies_endpoint_shape(client, auth):
 
 
 def test_missing_ffmpeg_gives_actionable_message(client, auth, monkeypatch):
+    monkeypatch.delenv("FFMPEG_PATH", raising=False)
     monkeypatch.setattr("shutil.which", lambda name: None)
     ff = client.get("/api/system/dependencies", headers=auth).json()["ffmpeg"]
     assert ff["ok"] is False and "Install FFmpeg" in ff["message"]
+
+
+def test_custom_ffmpeg_path_support(client, auth, monkeypatch):
+    monkeypatch.setattr("shutil.which", lambda name: None)
+    monkeypatch.setenv("FFMPEG_PATH", "nonexistent_ffmpeg_executable_path")
+    ff = client.get("/api/system/dependencies", headers=auth).json()["ffmpeg"]
+    assert ff["ok"] is False and "could not be started" in ff["message"]
+

@@ -151,6 +151,15 @@
       </div>
 
       <div class="field setting-field">
+        <label for="allowed-domains-input">Allowed websites (comma-separated)</label>
+        <div class="input-with-button">
+          <input type="text" id="allowed-domains-input" autocomplete="off" spellcheck="false" placeholder="archive.org, youtube.com, youtu.be">
+          <button type="button" class="button primary small" id="save-domains-button">Save</button>
+        </div>
+        <p class="field-hint" id="domains-save-message" role="status" aria-live="polite"></p>
+      </div>
+
+      <div class="field setting-field">
         <label for="theme-select">Theme appearance</label>
         <select id="theme-select">
           <option value="system">System default</option>

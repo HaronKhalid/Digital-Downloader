@@ -120,3 +120,23 @@ def test_settings_api_update_invalid(client, auth):
     )
     assert res.status_code == 400
     assert "The output directory must be an absolute path." in res.text
+
+
+def test_settings_api_update_domains(client, auth):
+    res = client.put(
+        "/api/settings",
+        json={"allowed_source_domains": ["archive.org", "youtube.com", "vimeo.com"]},
+        headers=auth,
+    )
+    assert res.status_code == 200
+    domains = res.json()["allowed_source_domains"]
+    assert "youtube.com" in domains
+    assert "vimeo.com" in domains
+
+    # Reject invalid domain syntax
+    res_bad = client.put(
+        "/api/settings",
+        json={"allowed_source_domains": ["bad domain with spaces"]},
+        headers=auth,
+    )
+    assert res_bad.status_code == 400

@@ -7,7 +7,7 @@ import sqlite3
 import threading
 from pathlib import Path
 
-from ..core.config import Settings
+from ..core.config import Settings, _DOMAIN
 from ..core.errors import AppError, ErrorCode
 from .file_service import PathSafetyError, validate_output_directory
 
@@ -47,10 +47,16 @@ class SettingsService:
                 try:
                     resolved = validate_output_directory(row["value"])
                     resolved.mkdir(parents=True, exist_ok=True)
-                    # Update settings in-memory
                     object.__setattr__(self._settings, "output_directory", resolved)
                 except (PathSafetyError, OSError) as exc:
                     logger.warning("invalid persisted output directory, ignoring: %s", exc)
+
+            row_domains = conn.execute("SELECT value FROM app_settings WHERE key = 'allowed_source_domains'").fetchone()
+            if row_domains:
+                loaded = {d.strip().lower().lstrip(".") for d in row_domains["value"].split(",") if d.strip()}
+                valid = {d for d in loaded if _DOMAIN.match(d)}
+                if valid:
+                    object.__setattr__(self._settings, "source_domains", frozenset(valid))
 
     def get_output_directory(self) -> Path:
         return self._settings.output_directory
@@ -76,6 +82,30 @@ class SettingsService:
         object.__setattr__(self._settings, "output_directory", resolved)
         logger.info("updated output directory", extra={"operation": "settings", "path": str(resolved)})
         return resolved
+
+    def update_allowed_domains(self, domains: list[str]) -> frozenset[str]:
+        cleaned = set()
+        for d in domains:
+            d_clean = d.strip().lower().lstrip(".")
+            if not d_clean:
+                continue
+            if not _DOMAIN.match(d_clean):
+                raise AppError(ErrorCode.INVALID_REQUEST, f"Invalid domain: {d}")
+            cleaned.add(d_clean)
+        if not cleaned:
+            raise AppError(ErrorCode.INVALID_REQUEST, "At least one allowed domain is required.")
+
+        as_set = frozenset(cleaned)
+        with self._lock, self._get_connection() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO app_settings (key, value) VALUES ('allowed_source_domains', ?)",
+                (",".join(sorted(as_set)),),
+            )
+            conn.commit()
+
+        object.__setattr__(self._settings, "source_domains", as_set)
+        logger.info("updated allowed domains", extra={"operation": "settings", "domains": list(sorted(as_set))})
+        return as_set
 
     def get_all(self) -> dict:
         return {

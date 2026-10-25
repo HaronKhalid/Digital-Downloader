@@ -16,5 +16,8 @@ def get_settings(request: Request) -> SettingsResponse:
 
 @router.put("", response_model=SettingsResponse)
 def update_settings(body: UpdateSettingsRequest, request: Request) -> SettingsResponse:
-    _settings(request).update_output_directory(body.output_directory)
+    if body.output_directory is not None:
+        _settings(request).update_output_directory(body.output_directory)
+    if body.allowed_source_domains is not None:
+        _settings(request).update_allowed_domains(body.allowed_source_domains)
     return SettingsResponse(**_settings(request).get_all())

@@ -9,6 +9,7 @@ import {
   renderDependencyError,
   renderHistory,
   setBusy,
+  setDomainsMessage,
   setSettingsMessage,
   setStatus,
   showNotice,
@@ -132,7 +133,11 @@ async function loadSettings() {
     if (els.outputDirectory) {
       els.outputDirectory.value = data.output_directory;
     }
+    if (els.allowedDomains && data.allowed_source_domains) {
+      els.allowedDomains.value = data.allowed_source_domains.join(", ");
+    }
     setSettingsMessage("", "");
+    setDomainsMessage("", "");
   } catch {
     setSettingsMessage("error", "Could not load settings.");
   }
@@ -147,11 +152,32 @@ async function saveSettings(e) {
   }
   setSettingsMessage("", "Saving…");
   try {
-    const updated = await api.updateSettings(dir);
+    const updated = await api.updateSettings({ output_directory: dir });
     els.outputDirectory.value = updated.output_directory;
     setSettingsMessage("ok", "Download folder updated successfully.");
   } catch (err) {
     setSettingsMessage("error", err instanceof ApiError ? err.message : "Could not save folder path.");
+  }
+}
+
+async function saveDomains(e) {
+  if (e) e.preventDefault();
+  const raw = els.allowedDomains.value.trim();
+  const domains = raw
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  if (domains.length === 0) {
+    setDomainsMessage("error", "Please enter at least one allowed domain.");
+    return;
+  }
+  setDomainsMessage("", "Saving…");
+  try {
+    const updated = await api.updateSettings({ allowed_source_domains: domains });
+    els.allowedDomains.value = updated.allowed_source_domains.join(", ");
+    setDomainsMessage("ok", "Allowed domains updated successfully.");
+  } catch (err) {
+    setDomainsMessage("error", err instanceof ApiError ? err.message : "Could not save allowed domains.");
   }
 }
 
@@ -191,6 +217,17 @@ async function start() {
       if (e.key === "Enter") {
         e.preventDefault();
         saveSettings();
+      }
+    });
+  }
+  if (els.saveDomains) {
+    els.saveDomains.addEventListener("click", saveDomains);
+  }
+  if (els.allowedDomains) {
+    els.allowedDomains.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        saveDomains();
       }
     });
   }

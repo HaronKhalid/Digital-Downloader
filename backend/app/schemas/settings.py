@@ -11,4 +11,5 @@ class SettingsResponse(BaseModel):
 
 class UpdateSettingsRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    output_directory: str = Field(min_length=1, max_length=4096)
+    output_directory: str | None = Field(default=None, min_length=1, max_length=4096)
+    allowed_source_domains: list[str] | None = Field(default=None)

@@ -204,18 +204,21 @@ class YtDlpSource(MediaSource):
         self,
         domains: frozenset[str],
         *,
+        settings: Settings | None = None,
         runner: Runner | None = None,
         timeout: float = 60.0,
         base_command: list[str] | None = None,
     ) -> None:
         self._domains = frozenset(d.lower() for d in domains)
+        self._settings = settings
         self._runner = runner or default_runner
         self._timeout = timeout
         self._base_command = list(base_command) if base_command else [sys.executable, "-m", "yt_dlp"]
 
     def can_handle(self, url: ValidatedURL) -> bool:
         host = url.host
-        return any(host == d or host.endswith("." + d) for d in self._domains)
+        domains = self._settings.source_domains if self._settings is not None else self._domains
+        return any(host == d or host.endswith("." + d) for d in domains)
 
     def build_command(self, url: str) -> list[str]:
         # Argument list only. "--" ends option parsing so the URL can never be read as a flag.

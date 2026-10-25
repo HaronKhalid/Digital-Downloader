@@ -72,6 +72,6 @@ class SourceService:
 def build_source_service(settings: Settings, http_client: SafeHttpClient | None = None) -> SourceService:
     client = http_client or SafeHttpClient(allowed_ports=settings.allowed_ports)
     return SourceService(
-        [DirectFileSource(client), YtDlpSource(settings.source_domains)],
+        [DirectFileSource(client), YtDlpSource(settings.source_domains, settings=settings)],
         http_client=client,
     )

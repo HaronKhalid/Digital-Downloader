@@ -68,7 +68,7 @@ class Settings:
 
         domains = frozenset(
             d.strip().lower().lstrip(".")
-            for d in env.get("ALLOWED_SOURCE_DOMAINS", "archive.org").split(",")
+            for d in env.get("ALLOWED_SOURCE_DOMAINS", "archive.org,youtube.com,youtu.be").split(",")
             if d.strip()
         )
         for domain in domains:

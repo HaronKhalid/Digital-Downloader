@@ -61,5 +61,6 @@ export const api = {
   deleteHistory: (id) => request("DELETE", `/api/history/${encodeURIComponent(id)}`),
   openHistory: (id, action) => request("POST", `/api/history/${encodeURIComponent(id)}/open`, { action }),
   settings: () => request("GET", "/api/settings"),
-  updateSettings: (output_directory) => request("PUT", "/api/settings", { output_directory }),
+  updateSettings: (payload) =>
+    request("PUT", "/api/settings", typeof payload === "string" ? { output_directory: payload } : payload),
 };

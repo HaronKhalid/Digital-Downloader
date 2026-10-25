@@ -22,6 +22,9 @@ export const els = {
   outputDirectory: $("output-directory-input"),
   saveSettings: $("save-settings-button"),
   settingsMessage: $("settings-save-message"),
+  allowedDomains: $("allowed-domains-input"),
+  saveDomains: $("save-domains-button"),
+  domainsMessage: $("domains-save-message"),
   dependencyList: $("dependency-list"),
   refreshDependencies: $("refresh-dependencies"),
   card: $("media-card"),
@@ -242,4 +245,10 @@ export function renderHistory(items, { onOpen, onFolder, onDelete }) {
 export function setSettingsMessage(state, text) {
   els.settingsMessage.dataset.state = state;
   els.settingsMessage.textContent = text;
+}
+
+export function setDomainsMessage(state, text) {
+  if (!els.domainsMessage) return;
+  els.domainsMessage.dataset.state = state;
+  els.domainsMessage.textContent = text;
 }

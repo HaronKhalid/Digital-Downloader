@@ -141,9 +141,9 @@ jobs:
         run: |
           mkdir -p release-apks
           if [ -f "android/app/build/outputs/apk/release/app-release.apk" ]; then
-            cp android/app/build/outputs/apk/release/app-release.apk release-apks/DigitalDownloader-v1.0.0.apk
+            cp android/app/build/outputs/apk/release/app-release.apk release-apks/DigitalDownloader.apk
           elif [ -f "android/app/build/outputs/apk/release/app-release-unsigned.apk" ]; then
-            cp android/app/build/outputs/apk/release/app-release-unsigned.apk release-apks/DigitalDownloader-v1.0.0.apk
+            cp android/app/build/outputs/apk/release/app-release-unsigned.apk release-apks/DigitalDownloader.apk
           fi
           if [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
             cp android/app/build/outputs/apk/debug/app-debug.apk release-apks/DigitalDownloader-debug.apk
@@ -192,7 +192,7 @@ jobs:
           elif [[ "$GITHUB_REF" =~ ^refs/tags/ ]]; then
             echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           else
-            echo "TAG_NAME=v1.0.0" >> $GITHUB_OUTPUT
+            echo "TAG_NAME=v1.0.2" >> $GITHUB_OUTPUT
           fi
 
       - name: Create GitHub Release
@@ -202,13 +202,13 @@ jobs:
           name: "Digital Downloader ${{ steps.get_tag.outputs.TAG_NAME }}"
           make_latest: true
           body: |
-            ### 🚀 Digital Downloader - Modern Cross-Platform Media Downloader
+            ### 🚀 Digital Downloader - Modern Media Downloader
 
-            Download media from YouTube, TikTok, Instagram, Twitter/X, Facebook, and 1,000+ supported sites with zero configuration.
+            Download media from YouTube, TikTok, Instagram, Twitter/X, Facebook, and 1,000+ supported sites.
 
             #### 📦 Downloads:
-            - **Windows**: `DigitalDownloader-windows-x64.zip` (standalone desktop app, no FFmpeg or Python install required)
-            - **Android APK**: `DigitalDownloader-v1.0.0.apk` / `DigitalDownloader-debug.apk` (install on Android phones & tablets with native share intent support)
+            - **Windows**: `DigitalDownloader.exe` / `DigitalDownloader-windows-x64.zip` (standalone desktop app, no external dependencies required)
+            - **Android APK**: `DigitalDownloader.apk` (standalone mobile app with native download manager support)
 
             #### ✨ Key Features:
             - **Universal Mode**: Automatic support for all media sources out-of-the-box.

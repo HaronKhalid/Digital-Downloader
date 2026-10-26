@@ -260,66 +260,11 @@
       <div class="field setting-field">
         <label for="output-directory-input">Save media to folder</label>
         <div class="input-with-button">
-          <input type="text" id="output-directory-input" autocomplete="off" spellcheck="false" placeholder="C:\Users\...\PersonalMedia">
+          <input type="text" id="output-directory-input" autocomplete="off" spellcheck="false" placeholder="Default: Downloads folder">
           <button type="button" class="button primary small" id="save-settings-button">Save</button>
         </div>
-        <p class="field-hint" style="margin-top: 0.35rem; font-size: 0.8rem; color: var(--color-text-muted);">Supports paths like <code>downloads\Music</code>, <code>~/Downloads</code>, or full paths. On mobile apps, downloads go directly to your device's Downloads directory.</p>
+        <p class="field-hint" style="margin-top: 0.35rem; font-size: 0.8rem; color: var(--color-text-muted);">Supports paths like <code>downloads\Music</code>, <code>~/Downloads</code>, or custom folders.</p>
         <p class="field-hint" id="settings-save-message" role="status" aria-live="polite"></p>
-      </div>
-
-      <div class="field setting-field" id="backend-url-field">
-        <label for="backend-url-input">Backend Server URL (Mobile / Remote)</label>
-        <div class="input-with-button">
-          <input type="text" id="backend-url-input" autocomplete="off" spellcheck="false" placeholder="http://10.0.2.2:8000 or http://127.0.0.1:8000">
-          <button type="button" class="button primary small" id="save-backend-url-button">Save</button>
-        </div>
-        <p class="field-hint" id="backend-url-message" role="status" aria-live="polite">Leave empty when running locally on desktop.</p>
-      </div>
-
-      <div class="field setting-field">
-        <div class="setting-toggle-row">
-          <div>
-            <label class="toggle-label">Universal Mode (Seal Style)</label>
-            <p class="field-hint">Always active — downloads from any video/audio site handled by yt-dlp (YouTube, TikTok, Instagram, Facebook, Reddit, and 1,000+ others).</p>
-          </div>
-          <span class="badge" style="background: rgba(34, 197, 94, 0.15); color: #22c55e; border-color: rgba(34, 197, 94, 0.3); font-weight: 600;">Always Active</span>
-        </div>
-      </div>
-
-      <details class="setting-details" style="margin-bottom: 1rem;">
-        <summary style="font-size: 0.85rem; color: var(--color-text-muted); cursor: pointer; user-select: none;">Domain Allow-list (Optional)</summary>
-        <div class="field setting-field" id="allowed-domains-field" style="margin-top: 0.75rem;">
-          <label for="allowed-domains-input">Custom allowed websites (leave * for all sites)</label>
-          <div class="input-with-button">
-            <input type="text" id="allowed-domains-input" autocomplete="off" spellcheck="false" placeholder="*">
-            <button type="button" class="button primary small" id="save-domains-button">Save</button>
-          </div>
-          <p class="field-hint" id="domains-save-message" role="status" aria-live="polite"></p>
-        </div>
-      </details>
-
-      <div class="field setting-field cookies-field">
-        <div class="cookies-head">
-          <label>Browser Cookies (Netscape cookies.txt)</label>
-          <span id="cookies-status-badge" class="badge">No cookies</span>
-        </div>
-        <p class="field-hint">Required by Instagram, Reddit, and private Facebook posts to bypass login blocks.</p>
-        <div class="cookies-actions">
-          <label class="button quiet small file-upload-label">
-            <span>Upload cookies.txt</span>
-            <input type="file" id="cookies-file-input" accept=".txt" class="visually-hidden">
-          </label>
-          <button type="button" class="button quiet small" id="paste-cookies-button">Paste text</button>
-          <button type="button" class="button quiet small danger" id="clear-cookies-button" hidden>Remove</button>
-        </div>
-        <div id="cookies-paste-box" hidden>
-          <textarea id="cookies-textarea" placeholder="# Netscape HTTP Cookie File&#10;.instagram.com&#9;TRUE&#9;/&#9;TRUE&#9;..." rows="4"></textarea>
-          <div class="cookies-box-actions">
-            <button type="button" class="button primary small" id="save-cookies-text-button">Save Cookies</button>
-            <button type="button" class="button quiet small" id="cancel-cookies-text-button">Cancel</button>
-          </div>
-        </div>
-        <p class="field-hint" id="cookies-save-message" role="status" aria-live="polite"></p>
       </div>
 
       <div class="field setting-field">
@@ -330,6 +275,33 @@
           <option value="light">Light</option>
         </select>
       </div>
+
+      <details class="setting-details" style="margin: 0.75rem 0;">
+        <summary style="font-size: 0.85rem; color: var(--color-text-muted); cursor: pointer; user-select: none;">Website Cookies (Optional for restricted media)</summary>
+        <div class="field setting-field cookies-field" style="margin-top: 0.75rem;">
+          <div class="cookies-head">
+            <label>Browser Cookies (.txt)</label>
+            <span id="cookies-status-badge" class="badge">No cookies</span>
+          </div>
+          <p class="field-hint">Only needed for private Instagram posts, age-restricted videos, or accounts requiring login.</p>
+          <div class="cookies-actions">
+            <label class="button quiet small file-upload-label">
+              <span>Upload cookies.txt</span>
+              <input type="file" id="cookies-file-input" accept=".txt" class="visually-hidden">
+            </label>
+            <button type="button" class="button quiet small" id="paste-cookies-button">Paste text</button>
+            <button type="button" class="button quiet small danger" id="clear-cookies-button" hidden>Remove</button>
+          </div>
+          <div id="cookies-paste-box" hidden style="margin-top: 0.5rem;">
+            <textarea id="cookies-textarea" placeholder="# Netscape HTTP Cookie File&#10;.instagram.com&#9;TRUE&#9;/&#9;TRUE&#9;..." rows="4"></textarea>
+            <div class="cookies-box-actions">
+              <button type="button" class="button primary small" id="save-cookies-text-button">Save Cookies</button>
+              <button type="button" class="button quiet small" id="cancel-cookies-text-button">Cancel</button>
+            </div>
+          </div>
+          <p class="field-hint" id="cookies-save-message" role="status" aria-live="polite"></p>
+        </div>
+      </details>
 
       <h3>Dependencies</h3>
       <ul id="dependency-list" class="dependency-list" aria-live="polite">

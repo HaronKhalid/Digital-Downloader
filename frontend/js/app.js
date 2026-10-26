@@ -182,6 +182,7 @@ async function saveSettings(e) {
 
 async function saveDomains(e) {
   if (e) e.preventDefault();
+  if (!els.allowedDomains) return;
   const raw = els.allowedDomains.value.trim();
   const domains = raw
     .split(",")

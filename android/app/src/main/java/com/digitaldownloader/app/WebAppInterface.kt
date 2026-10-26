@@ -79,6 +79,56 @@ class WebAppInterface(private val activity: MainActivity) {
     }
 
     @JavascriptInterface
+    fun httpGet(targetUrl: String): String {
+        return try {
+            val url = java.net.URL(targetUrl)
+            val conn = url.openConnection() as java.net.HttpURLConnection
+            conn.requestMethod = "GET"
+            conn.connectTimeout = 12000
+            conn.readTimeout = 15000
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+            conn.setRequestProperty("Accept", "*/*")
+            val code = conn.responseCode
+            val stream = if (code in 200..299) conn.inputStream else (conn.errorStream ?: conn.inputStream)
+            val reader = java.io.BufferedReader(java.io.InputStreamReader(stream, "UTF-8"))
+            val response = reader.readText()
+            reader.close()
+            response
+        } catch (e: Exception) {
+            "{\"error\": \"${e.message?.replace("\"", "\\\"") ?: "Network error"}\"}"
+        }
+    }
+
+    @JavascriptInterface
+    fun httpPost(targetUrl: String, body: String?, contentType: String?): String {
+        return try {
+            val url = java.net.URL(targetUrl)
+            val conn = url.openConnection() as java.net.HttpURLConnection
+            conn.requestMethod = "POST"
+            conn.connectTimeout = 12000
+            conn.readTimeout = 15000
+            conn.doOutput = true
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+            conn.setRequestProperty("Content-Type", contentType ?: "application/json")
+            conn.setRequestProperty("Accept", "application/json")
+            if (!body.isNullOrEmpty()) {
+                val os = conn.outputStream
+                os.write(body.toByteArray(Charsets.UTF_8))
+                os.flush()
+                os.close()
+            }
+            val code = conn.responseCode
+            val stream = if (code in 200..299) conn.inputStream else (conn.errorStream ?: conn.inputStream)
+            val reader = java.io.BufferedReader(java.io.InputStreamReader(stream, "UTF-8"))
+            val response = reader.readText()
+            reader.close()
+            response
+        } catch (e: Exception) {
+            "{\"error\": \"${e.message?.replace("\"", "\\\"") ?: "Network error"}\"}"
+        }
+    }
+
+    @JavascriptInterface
     fun downloadUrlViaSystem(url: String, filename: String, mimeType: String): Boolean {
         return try {
             val dm = activity.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager

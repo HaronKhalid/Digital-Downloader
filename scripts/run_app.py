@@ -36,28 +36,27 @@ for bd in bin_dirs:
         if str(bd.resolve()) not in current_path:
             os.environ["PATH"] = str(bd.resolve()) + os.pathsep + current_path
 
-# Configure default environment: 0.0.0.0 allows phones on the same Wi-Fi to connect
-os.environ.setdefault("HOST", "0.0.0.0")
+# Configure default environment: Desktop binds strictly to 127.0.0.1 loopback
+os.environ["HOST"] = "127.0.0.1"
 os.environ.setdefault("PORT", "8000")
 if not os.environ.get("FRONTEND_DIRECTORY"):
     frontend_candidate = APP_DIR / "frontend"
     if frontend_candidate.is_dir():
         os.environ["FRONTEND_DIRECTORY"] = str(frontend_candidate.resolve())
 
-import socket
+# Discover bundled binaries and export explicit environment variables
+for bd in bin_dirs:
+    if bd.is_dir():
+        ff = bd / ("ffmpeg.exe" if sys.platform == "win32" else "ffmpeg")
+        if ff.is_file() and not os.environ.get("FFMPEG_PATH"):
+            os.environ["FFMPEG_PATH"] = str(ff.resolve())
+            os.environ["FFMPEG_LOCATION"] = str(bd.resolve())
+        ytdlp = bd / ("yt-dlp.exe" if sys.platform == "win32" else "yt-dlp")
+        if ytdlp.is_file() and not os.environ.get("YTDLP_PATH"):
+            os.environ["YTDLP_PATH"] = str(ytdlp.resolve())
+
 import uvicorn
 from backend.app.main import create_app
-
-
-def get_lan_ip() -> str:
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except Exception:
-        return "127.0.0.1"
 
 
 def open_browser_when_ready(port: int, max_wait: float = 10.0) -> None:
@@ -81,15 +80,12 @@ def open_browser_when_ready(port: int, max_wait: float = 10.0) -> None:
 
 def main() -> None:
     port = int(os.environ.get("PORT", "8000"))
-    bind_host = os.environ.get("HOST", "0.0.0.0")
-    lan_ip = get_lan_ip()
+    bind_host = "127.0.0.1"
 
     try:
         print("=" * 60)
         print(" Digital Downloader - Standalone Desktop App")
-        print(f" Desktop Access: http://127.0.0.1:{port}")
-        if lan_ip and lan_ip != "127.0.0.1":
-            print(f" Mobile / Wi-Fi Access: http://{lan_ip}:{port}")
+        print(f" Access URL: http://127.0.0.1:{port}")
         print(" Binaries (FFmpeg, FFprobe, yt-dlp) bundled and ready.")
         print("=" * 60)
     except Exception:
@@ -100,7 +96,7 @@ def main() -> None:
     browser_thread.start()
 
     app = create_app()
-    uvicorn.run(app, host=bind_host, port=port, log_level="info")
+    uvicorn.run(app, host=bind_host, port=port, log_level="warning")
 
 
 if __name__ == "__main__":

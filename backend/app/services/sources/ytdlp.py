@@ -15,6 +15,7 @@ import importlib.metadata
 import importlib.util
 import json
 import logging
+import os
 import re
 import shutil
 import subprocess
@@ -52,6 +53,10 @@ INSTALL_HINT = "The media extractor (yt-dlp) isn't installed. Run scripts\\setup
 
 def find_ytdlp_binary() -> Path | None:
     """Check for standalone yt-dlp binary in bundled and system paths."""
+    env_path = os.environ.get("YTDLP_PATH")
+    if env_path and Path(env_path).is_file():
+        return Path(env_path)
+
     candidates: list[Path] = []
     exe_name = "yt-dlp.exe" if sys.platform == "win32" else "yt-dlp"
 
@@ -129,6 +134,18 @@ def map_error(stderr: str) -> AppError:
         return AppError(ErrorCode.UNSUPPORTED_SOURCE, "That page isn't supported. Try a link to a single media item.", reason="unsupported_url")
     if "drm" in text:
         return AppError(ErrorCode.MEDIA_NOT_AVAILABLE, "This media is protected by DRM and can't be downloaded.", reason="drm")
+    if any(k in text for k in ("10054", "forcibly closed", "connection reset", "connection aborted", "transport error", "connection reset by peer")):
+        return AppError(
+            ErrorCode.SOURCE_UNAVAILABLE,
+            "Connection to the media host was reset by your network or ISP. Please check your internet connection or use a VPN.",
+            reason="connection_reset",
+        )
+    if "sign in to confirm you're not a bot" in text or "sign in to confirm you’re not a bot" in text:
+        return AppError(
+            ErrorCode.MEDIA_NOT_AVAILABLE,
+            "The video platform requested bot verification for this IP address. Please try again shortly or use a VPN.",
+            reason="bot_verification",
+        )
     if any(k in text for k in ("sign in", "log in", "login", "private", "members", "premium", "subscri", "http error 401", "http error 403", "account authentication is required", "instagram api is not granting access")):
         return AppError(
             ErrorCode.MEDIA_NOT_AVAILABLE,
@@ -318,15 +335,18 @@ class YtDlpSource(MediaSource):
 
     def build_command(self, url: str) -> list[str]:
         # Argument list only. "--" ends option parsing so the URL can never be read as a flag.
-        return [
+        cmd = [
             *self._base_command,
             "--ignore-config", "--no-plugin-dirs", "--no-cache-dir", "--no-exec",
             *self._cookie_args(),
             *self._impersonate_args(url),
             "--dump-single-json", "--no-playlist", "--no-warnings", "--no-progress",
             "--socket-timeout", "15", "--retries", "2", "--extractor-retries", "2",
-            "--", url,
         ]
+        if is_youtube_url(url):
+            cmd.extend(["--extractor-args", "youtube:player_client=android,web;player_skip=configs"])
+        cmd.extend(["--", url])
+        return cmd
 
     def _try_tiktok_fallback(self, url: str) -> MediaInfo | None:
         try:
@@ -471,6 +491,8 @@ class YtDlpSource(MediaSource):
             "-f", fmt_id,
             "-o", template,
         ]
+        if is_youtube_url(url):
+            command.extend(["--extractor-args", "youtube:player_client=android,web;player_skip=configs"])
         if ctx.ffmpeg_location:
             command += ["--ffmpeg-location", ctx.ffmpeg_location]
         return [*command, "--", url]

@@ -63,6 +63,12 @@ def build_pyinstaller() -> Path:
         f"{BIN / 'ffprobe.exe'};bin",
         "--add-binary",
         f"{BIN / 'yt-dlp.exe'};bin",
+        "--add-binary",
+        f"{BIN / 'ffmpeg.exe'};.",
+        "--add-binary",
+        f"{BIN / 'ffprobe.exe'};.",
+        "--add-binary",
+        f"{BIN / 'yt-dlp.exe'};.",
         "--collect-all",
         "yt_dlp",
         "--hidden-import",
@@ -96,7 +102,7 @@ def build_pyinstaller() -> Path:
 
 
 def create_zip_archive(exe_path: Path) -> Path:
-    """Create dist/DigitalDownloader-windows-x64.zip containing standalone executable and README."""
+    """Create dist/DigitalDownloader-windows-x64.zip containing standalone executable and desktop shortcut tool."""
     zip_path = DIST / "DigitalDownloader-windows-x64.zip"
     print(f">> Creating distribution zip: {zip_path.name}...")
     if zip_path.exists():
@@ -105,19 +111,36 @@ def create_zip_archive(exe_path: Path) -> Path:
     readme_content = (
         "Digital Downloader - Standalone Desktop App\n"
         "===========================================\n\n"
-        "Double-click DigitalDownloader.exe to start.\n"
-        "Your browser will open automatically at http://127.0.0.1:8000\n\n"
+        "How to use:\n"
+        "1. Double-click DigitalDownloader.exe to start.\n"
+        "2. The app will launch smoothly without terminal windows and open your browser automatically.\n"
+        "3. (Optional) Run Create-Desktop-Shortcut.bat to add a convenient icon to your Desktop.\n\n"
         "Features:\n"
-        "- Single executable: No Python or FFmpeg installation required.\n"
-        "- All extractors and codecs (yt-dlp, FFmpeg, FFprobe) are fully bundled.\n"
-        "- Works directly without extracting from zip.\n"
-        "- Downloads save to your Downloads/DigitalDownloader folder.\n"
-        "- Mobile access: Phones on the same Wi-Fi can connect directly using your PC's IP address.\n"
+        "- Standalone & Bundled: No Python or FFmpeg installation required.\n"
+        "- All media engines (yt-dlp, FFmpeg, FFprobe) are fully bundled.\n"
+        "- Downloads save to your Downloads folder or any folder you choose in Settings.\n"
+    )
+
+    shortcut_bat = (
+        "@echo off\r\n"
+        "set SCRIPT=\"%TEMP%\\dd-shortcut.vbs\"\r\n"
+        "echo Set oWS = WScript.CreateObject(\"WScript.Shell\") > %SCRIPT%\r\n"
+        "echo sLinkFile = oWS.SpecialFolders(\"Desktop\") ^& \"\\Digital Downloader.lnk\" >> %SCRIPT%\r\n"
+        "echo Set oLink = oWS.CreateShortcut(sLinkFile) >> %SCRIPT%\r\n"
+        "echo oLink.TargetPath = \"%~dp0DigitalDownloader.exe\" >> %SCRIPT%\r\n"
+        "echo oLink.WorkingDirectory = \"%~dp0\" >> %SCRIPT%\r\n"
+        "echo oLink.Description = \"Digital Downloader\" >> %SCRIPT%\r\n"
+        "echo oLink.Save >> %SCRIPT%\r\n"
+        "cscript /nologo %SCRIPT%\r\n"
+        "if exist %SCRIPT% del %SCRIPT%\r\n"
+        "echo Shortcut created on your Desktop!\r\n"
+        "timeout /t 3 >nul\r\n"
     )
 
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.write(exe_path, arcname="DigitalDownloader.exe")
         zf.writestr("README.txt", readme_content)
+        zf.writestr("Create-Desktop-Shortcut.bat", shortcut_bat)
 
     size_mb = zip_path.stat().st_size / (1024 * 1024)
     print(f">> Release archive created: {zip_path.name} ({size_mb:.1f} MB)")

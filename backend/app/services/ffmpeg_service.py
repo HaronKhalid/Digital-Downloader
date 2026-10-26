@@ -58,6 +58,46 @@ def detect_ffmpeg(timeout: float = 5.0) -> FFmpegStatus:
     return FFmpegStatus(True, version=match.group(1))
 
 
+import sys
+from pathlib import Path
+
+
 def find_ffmpeg() -> str | None:
-    return os.environ.get("FFMPEG_PATH") or shutil.which("ffmpeg")
+    if os.environ.get("FFMPEG_PATH"):
+        return os.environ["FFMPEG_PATH"]
+
+    if getattr(sys, "frozen", False):
+        exe_name = "ffmpeg.exe" if sys.platform == "win32" else "ffmpeg"
+        candidates: list[Path] = []
+        if hasattr(sys, "_MEIPASS"):
+            candidates.append(Path(sys._MEIPASS) / "bin" / exe_name)
+            candidates.append(Path(sys._MEIPASS) / exe_name)
+        exe_parent = Path(sys.executable).parent
+        candidates.append(exe_parent / "bin" / exe_name)
+        candidates.append(exe_parent / exe_name)
+        for c in candidates:
+            if c.is_file():
+                return str(c)
+
+    return shutil.which("ffmpeg") or (shutil.which("ffmpeg.exe") if sys.platform == "win32" else None)
+
+
+def find_ffprobe() -> str | None:
+    if os.environ.get("FFPROBE_PATH"):
+        return os.environ["FFPROBE_PATH"]
+
+    if getattr(sys, "frozen", False):
+        exe_name = "ffprobe.exe" if sys.platform == "win32" else "ffprobe"
+        candidates: list[Path] = []
+        if hasattr(sys, "_MEIPASS"):
+            candidates.append(Path(sys._MEIPASS) / "bin" / exe_name)
+            candidates.append(Path(sys._MEIPASS) / exe_name)
+        exe_parent = Path(sys.executable).parent
+        candidates.append(exe_parent / "bin" / exe_name)
+        candidates.append(exe_parent / exe_name)
+        for c in candidates:
+            if c.is_file():
+                return str(c)
+
+    return shutil.which("ffprobe") or (shutil.which("ffprobe.exe") if sys.platform == "win32" else None)
 

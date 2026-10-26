@@ -13,34 +13,9 @@ from ..core.errors import AppError, ErrorCode
 from ..models.job import Job, JobStatus
 from ..utils.filenames import ALLOWED_OUTPUT_EXTENSIONS
 
+from core.models.history import HistoryItem
+
 logger = logging.getLogger("app.history")
-
-
-@dataclass(frozen=True)
-class HistoryItem:
-    id: str
-    url: str
-    title: str
-    filename: str
-    file_path: str
-    file_size: int
-    source: str
-    format_label: str
-    completed_at: str
-    file_exists: bool
-
-    def to_dict(self) -> dict:
-        return {
-            "id": self.id,
-            "url": self.url,
-            "title": self.title,
-            "filename": self.filename,
-            "file_size": self.file_size,
-            "source": self.source,
-            "format_label": self.format_label,
-            "completed_at": self.completed_at,
-            "file_exists": self.file_exists,
-        }
 
 
 class HistoryService:

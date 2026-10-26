@@ -78,7 +78,16 @@ def create_app(
         app.state.analysis_cache,
         history=app.state.history_service,
     )
+    from core.engine import DownloaderEngine
+
+    app.state.engine = DownloaderEngine(
+        source_service=app.state.source_service,
+        job_service=app.state.job_service,
+        history_service=app.state.history_service,
+        settings_service=app.state.settings_service,
+    )
     app.state.opener = opener
+
 
     app.add_middleware(
         LocalOnlyMiddleware,

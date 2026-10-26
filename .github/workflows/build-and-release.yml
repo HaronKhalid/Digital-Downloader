@@ -158,11 +158,44 @@ jobs:
           retention-days: 14
 
   # -------------------------------------------------------------
-  # 4. GitHub Release (Published on Tags, Main Branch, or Dispatch)
+  # 4. Build Linux Standalone App
+  # -------------------------------------------------------------
+  build-linux:
+    name: Build Linux Desktop Standalone
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements-dev.txt
+
+      - name: Build Linux Standalone Binary
+        run: |
+          python scripts/package_linux.py
+
+      - name: Upload Linux Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DigitalDownloader-linux-x64
+          path: dist/DigitalDownloader-linux-x64
+          retention-days: 14
+
+  # -------------------------------------------------------------
+  # 5. GitHub Release (Published on Tags, Main Branch, or Dispatch)
   # -------------------------------------------------------------
   release:
     name: Publish GitHub Release
-    needs: [build-windows, build-android]
+    needs: [build-windows, build-android, build-linux]
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v') || github.event.inputs.publish_release == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -181,6 +214,12 @@ jobs:
           name: DigitalDownloader-android-apks
           path: release-assets/
 
+      - name: Download Linux Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: DigitalDownloader-linux-x64
+          path: release-assets/
+
       - name: List Release Files
         run: ls -la release-assets/
 
@@ -192,7 +231,7 @@ jobs:
           elif [[ "$GITHUB_REF" =~ ^refs/tags/ ]]; then
             echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           else
-            echo "TAG_NAME=v1.0.2" >> $GITHUB_OUTPUT
+            echo "TAG_NAME=v2.0.0-dev" >> $GITHUB_OUTPUT
           fi
 
       - name: Create GitHub Release
@@ -202,15 +241,17 @@ jobs:
           name: "Digital Downloader ${{ steps.get_tag.outputs.TAG_NAME }}"
           make_latest: true
           body: |
-            ### 🚀 Digital Downloader - Modern Media Downloader
+            ### 🚀 Digital Downloader v2
 
-            Download media from YouTube, TikTok, Instagram, Twitter/X, Facebook, and 1,000+ supported sites.
+            Cross-platform standalone media downloader for Windows, Android, and Linux.
 
             #### 📦 Downloads:
             - **Windows**: `DigitalDownloader.exe` / `DigitalDownloader-windows-x64.zip` (standalone desktop app, no external dependencies required)
             - **Android APK**: `DigitalDownloader.apk` (standalone mobile app with native download manager support)
+            - **Linux**: `DigitalDownloader-linux-x64` (standalone executable)
 
             #### ✨ Key Features:
+            - **Standalone**: No manual Python or FFmpeg installation required.
             - **Universal Mode**: Automatic support for all media sources out-of-the-box.
             - **Quality Selection**: Pick from maximum 4K/1080p resolution down to 144p or audio only.
             - **Android Share Target**: Share videos directly from TikTok, Instagram, or YouTube into Digital Downloader.

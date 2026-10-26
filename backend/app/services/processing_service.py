@@ -162,7 +162,7 @@ def run_processing(
         try:
             result = run_controlled(
                 build_command(ffmpeg, plan, inputs, output, transcode=transcode),
-                env=controlled_env(), cancel=cancel, timeout=FFMPEG_TIMEOUT, on_line=on_line,
+                env=controlled_env(ffmpeg), cancel=cancel, timeout=FFMPEG_TIMEOUT, on_line=on_line,
             )
         except ProcessTimeout:
             raise AppError(ErrorCode.TIMEOUT, "Processing took too long and was stopped.", reason="ffmpeg_timeout") from None

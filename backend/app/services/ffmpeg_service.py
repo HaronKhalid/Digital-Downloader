@@ -66,8 +66,8 @@ def find_ffmpeg() -> str | None:
     if os.environ.get("FFMPEG_PATH"):
         return os.environ["FFMPEG_PATH"]
 
+    exe_name = "ffmpeg.exe" if sys.platform == "win32" else "ffmpeg"
     if getattr(sys, "frozen", False):
-        exe_name = "ffmpeg.exe" if sys.platform == "win32" else "ffmpeg"
         candidates: list[Path] = []
         if hasattr(sys, "_MEIPASS"):
             candidates.append(Path(sys._MEIPASS) / "bin" / exe_name)
@@ -86,8 +86,8 @@ def find_ffprobe() -> str | None:
     if os.environ.get("FFPROBE_PATH"):
         return os.environ["FFPROBE_PATH"]
 
+    exe_name = "ffprobe.exe" if sys.platform == "win32" else "ffprobe"
     if getattr(sys, "frozen", False):
-        exe_name = "ffprobe.exe" if sys.platform == "win32" else "ffprobe"
         candidates: list[Path] = []
         if hasattr(sys, "_MEIPASS"):
             candidates.append(Path(sys._MEIPASS) / "bin" / exe_name)
@@ -100,4 +100,5 @@ def find_ffprobe() -> str | None:
                 return str(c)
 
     return shutil.which("ffprobe") or (shutil.which("ffprobe.exe") if sys.platform == "win32" else None)
+
 

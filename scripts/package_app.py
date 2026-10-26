@@ -89,6 +89,10 @@ def build_pyinstaller() -> Path:
         "uvicorn.lifespan",
         "--hidden-import",
         "uvicorn.lifespan.on",
+        "--collect-all",
+        "core",
+        "--hidden-import",
+        "core",
     ]
     if icon_path.is_file():
         cmd.extend(["--icon", str(icon_path)])

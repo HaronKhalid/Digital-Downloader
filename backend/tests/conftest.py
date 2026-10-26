@@ -1,6 +1,13 @@
+import os
 import socket
+import sys
+from pathlib import Path
 
 import pytest
+
+_BIN_DIR = Path(__file__).resolve().parents[2] / "bin"
+if _BIN_DIR.is_dir() and str(_BIN_DIR) not in os.environ.get("PATH", ""):
+    os.environ["PATH"] = str(_BIN_DIR) + os.pathsep + os.environ.get("PATH", "")
 
 
 def make_resolver(*ips: str):

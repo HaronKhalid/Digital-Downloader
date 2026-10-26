@@ -1,47 +1,79 @@
-# Digital Downloader
+# Digital Downloader v2
 
-A modern, fast cross-platform utility for analyzing and downloading media from YouTube, TikTok, Instagram, Twitter/X, Facebook, direct links, and 1,000+ supported sites. It runs locally on your computer (FastAPI backend + responsive web UI) and on Android with native share-target integration.
+A modern, fast, cross-platform media downloader for YouTube, TikTok, Instagram, Twitter/X, Facebook, direct links, and 1,000+ supported sites.
 
-> **Status: All Phases Complete.** Paste any link, analyze available streams, select quality/format (from 4K/1080p to audio-only), and download with live progress, real-time cancellation, FFmpeg transcode/merge/remux, and instant Open file / Folder actions.
->
-> **Complete features included:**
-> - **Universal Mode:** Automatic support for all media sources out of the box with zero configuration.
-> - **Quality & Format Selection:** Choose from highest 4K/2K/1080p down to 144p or extract audio (MP3/M4A/AAC).
-> - **Cross-Platform:** Standalone Windows desktop app (`DigitalDownloader.exe`) and Android APK with Share Target support.
-> - **History & Settings:** Persistent SQLite download history with "Open file" and "Folder" shortcuts; customize output directory.
-> - **Security Hardened:** Strict file permissions, safe non-shell execution (`shell=False`), loopback binding guardrails, and CSRF protection.
-> - **Modern Brand Design:** Featuring Digital Takhleeq typography (Montserrat headings & Manrope body) and sleek light/dark themes.
+> **One product. One core. Multiple platform adapters.**  
+> Built as truly standalone applications for **Windows**, **Android**, and **Linux** with no external server or manual Python/FFmpeg installation prerequisites.
 
-**Use only with content you own or have permission to download.** The application does not and will not bypass DRM, authentication, paywalls or CAPTCHAs.
+---
 
-## Requirements
+### ✨ Key Features:
+- **Zero Configuration Standalone:** Works out of the box with bundled multimedia runtimes.
+- **Universal Extraction:** Automatic support for all major media platforms and direct streams.
+- **Quality & Format Selection:** Choose from 4K/2K/1080p down to 144p or extract audio (MP3/M4A/Opus).
+- **Independent Android App:** Direct on-device extraction, native Android `DownloadManager` background downloading, system notifications, and Share Sheet integration.
+- **History & Management:** Persistent download history with instant "Open file" and "Folder" actions.
+- **Security Hardened:** Safe argument-list subprocess execution (`shell=False`), loopback binding guardrails (`127.0.0.1`), and path traversal sanitization.
+- **Decoupled Architecture:** Clean `core/` domain engine powering platform adapters for Windows, Android, and Linux.
 
-- Windows 10/11
-- Python 3.12+ (for running from source)
-- Standalone release requires no prerequisites (FFmpeg and runtime are bundled)
+---
+
+## 📱 Supported Platforms
+
+| Platform | Format | Integration | Dependency |
+|---|---|---|---|
+| **Windows** | `.exe` / `.zip` | Bundled `yt-dlp` + `ffmpeg` | None (Fully Standalone) |
+| **Android** | `.apk` | Native Share Target + MediaStore | None (Fully Standalone) |
+| **Linux** | Standalone Binary / AppImage | Bundled runtime + local storage | None (Fully Standalone) |
+
+---
 
 ## Quick start (Windows PowerShell)
 
 ```powershell
-scripts\setup.ps1      # once: creates .venv, installs dependencies, configures FFmpeg
+scripts\setup.ps1      # installs local dependencies for development
 scripts\start.ps1      # starts http://127.0.0.1:8000 and opens your browser
 ```
 
-## Cross-Platform Application (Desktop & Mobile)
+---
 
-Digital Downloader can be packaged and run across both desktop and mobile platforms:
+## Architecture (v2)
 
-- **Windows Desktop Application (`.exe`)**: Standalone portable app with bundled FFmpeg and Python runtime into `DigitalDownloader-windows-x64.zip`. No prerequisites required.
-- **Android Mobile Application (`.apk`)**: Native Android APK with system share-target integration (tap "Share" in YouTube, TikTok, Instagram, Twitter/X to analyze immediately), MediaStore download saving, and mobile-optimized touch controls.
+Digital Downloader v2 is organized into four clean layers:
 
-## GitHub Actions CI/CD Workflow
+```text
+┌─────────────────────────────────────────┐
+│              PRESENTATION               │
+│ Web UI / Desktop Shell / Android WebView│
+└──────────────────┬──────────────────────┘
+                   │
+┌──────────────────▼──────────────────────┐
+│             APPLICATION API             │
+│ Analyze / Download / Cancel / History   │
+└──────────────────┬──────────────────────┘
+                   │
+┌──────────────────▼──────────────────────┐
+│               CORE ENGINE               │
+│ Extraction / Formats / Queue / Engine   │
+└──────────────────┬──────────────────────┘
+                   │
+┌──────────────────▼──────────────────────┐
+│            PLATFORM ADAPTERS            │
+│ Windows / Android MediaStore / Linux    │
+└─────────────────────────────────────────┘
+```
 
-The repository includes an automated GitHub Actions workflow at [`.github/workflows/build-and-release.yml`](.github/workflows/build-and-release.yml):
+---
 
-- **Automated Testing**: Runs the complete unit test suite on Python 3.12 before compiling any binaries.
-- **Windows Build Job**: Compiles `DigitalDownloader.exe` and bundles standalone FFmpeg binaries into `DigitalDownloader-windows-x64.zip`.
-- **Android Build Job**: Bundles mobile web assets and compiles the Android APK using Gradle & Android SDK.
-- **Automated Releases**: When a tag like `v1.0.0` is pushed (or triggered via manual workflow dispatch), creates a GitHub Release and attaches both the Windows `.zip` and Android `.apk` files.
+## CI/CD Workflow & Releases
+
+The repository includes an automated GitHub Actions pipeline at [`.github/workflows/build-and-release.yml`](.github/workflows/build-and-release.yml):
+
+- **Automated Testing**: Runs the complete 570+ unit and integration test suite across `backend/tests/` and `tests/core/`.
+- **Windows Packaging**: Compiles `DigitalDownloader.exe` and bundles standalone FFmpeg binaries into `DigitalDownloader-windows-x64.zip`.
+- **Android APK Build**: Syncs web assets and compiles the native Android APK (`DigitalDownloader.apk`).
+- **Linux Packaging**: Packages the standalone Linux executable (`DigitalDownloader-linux-x64`).
+- **Automated Releases**: Generates GitHub Releases with downloadable assets across all three platforms.
 
 ### Pushing to GitHub & Publishing Releases
 

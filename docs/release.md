@@ -17,10 +17,10 @@ Encode and add four repository secrets (GitHub > Settings > Secrets and variable
 
 | Secret | Value |
 |---|---|
-| `ANDROID_KEYSTORE_BASE64` | output of `base64 -w0 digitaldownloader-release.jks` (Windows: `[Convert]::ToBase64String([IO.File]::ReadAllBytes("digitaldownloader-release.jks"))`) |
-| `ANDROID_KEYSTORE_PASSWORD` | keystore password |
+| `ANDROID_KEYSTORE_BASE64` | [Convert]::ToBase64String([IO.File]::ReadAllBytes("$HOME\Documents\digitaldownloader-release.jks")) | Set-Clipboard |
+| `ANDROID_KEYSTORE_PASSWORD` | Digit@1d0wnloader |
 | `ANDROID_KEY_ALIAS` | `digitaldownloader` |
-| `ANDROID_KEY_PASSWORD` | key password |
+| `ANDROID_KEY_PASSWORD` | Digit@1d0wnloader |
 
 Never commit the `.jks` file (it is ignored by `.gitignore`).
 

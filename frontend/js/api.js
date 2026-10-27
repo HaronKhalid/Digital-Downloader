@@ -113,33 +113,48 @@ async function nativeHttpGet(url) {
   if (isAndroidApp() && typeof window.AndroidBridge.httpGet === "function") {
     try {
       const text = window.AndroidBridge.httpGet(url);
-      return JSON.parse(text);
+      if (typeof text === "string" && (text.trim().startsWith("{") || text.trim().startsWith("["))) {
+        return JSON.parse(text);
+      }
+      return text;
     } catch (_) {}
   }
-  const res = await fetch(url, { headers: { Accept: "application/json" } });
-  return await res.json();
+  const res = await fetch(url, { headers: { Accept: "application/json, text/plain, */*" } });
+  const contentType = res.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    return await res.json();
+  }
+  return await res.text();
 }
 
-async function nativeHttpPost(url, body) {
+async function nativeHttpPost(url, body, contentType = "application/json") {
+  const bodyStr = typeof body === "string" ? body : JSON.stringify(body);
   if (isAndroidApp() && typeof window.AndroidBridge.httpPost === "function") {
     try {
-      const text = window.AndroidBridge.httpPost(url, JSON.stringify(body), "application/json");
-      return JSON.parse(text);
+      const text = window.AndroidBridge.httpPost(url, bodyStr, contentType);
+      if (typeof text === "string" && (text.trim().startsWith("{") || text.trim().startsWith("["))) {
+        return JSON.parse(text);
+      }
+      return text;
     } catch (_) {}
   }
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify(body),
+    headers: { "Content-Type": contentType, Accept: "application/json, text/plain, */*" },
+    body: bodyStr,
   });
-  return await res.json();
+  const cType = res.headers.get("content-type") || "";
+  if (cType.includes("application/json")) {
+    return await res.json();
+  }
+  return await res.text();
 }
 
 async function standaloneAnalyze(url) {
   const cleanUrl = url.trim();
   const lower = cleanUrl.toLowerCase();
 
-  // 1. TikTok
+  // 1. TikTok (via TikWM public direct API)
   if (lower.includes("tiktok.com/")) {
     try {
       const apiUrl = `https://www.tikwm.com/api/?url=${encodeURIComponent(cleanUrl)}`;
@@ -296,13 +311,27 @@ async function standaloneAnalyze(url) {
     }
   }
 
-  // 4. Cobalt API fallback for other video platforms
-  const cobaltInstances = ["https://cobalt-api.kwiatekm.tokyo", "https://capi.wuk.sh"];
+  // 4. Cobalt v10 / v11 instances for multi-platform media (Instagram, X/Twitter, YouTube, Reddit, Facebook)
+  const cobaltInstances = [
+    "https://rue-cobalt.xenon.zone",
+    "https://cobaltapi.cjs.nz",
+    "https://api-cobalt.eversiege.network",
+    "https://cobaltapi.squair.xyz",
+    "https://cobaltapi.kittycat.boo",
+    "https://cobalt-api.lamps-dev.dev",
+    "https://apicobalt.girlskissing.top",
+  ];
+
   for (const cInst of cobaltInstances) {
     try {
-      const cobaltRes = await nativeHttpPost(`${cInst}/`, { url: cleanUrl });
-      if (cobaltRes && (cobaltRes.url || cobaltRes.status === "stream" || cobaltRes.status === "picker")) {
-        const streamUrl = cobaltRes.url || cobaltRes.picker?.[0]?.url;
+      const payload = {
+        url: cleanUrl,
+        videoQuality: "1080",
+        downloadMode: "auto",
+      };
+      const cobaltRes = await nativeHttpPost(`${cInst}/`, payload, "application/json");
+      if (cobaltRes && (cobaltRes.url || cobaltRes.status === "tunnel" || cobaltRes.status === "redirect" || cobaltRes.status === "stream" || cobaltRes.status === "picker")) {
+        const streamUrl = cobaltRes.url || (cobaltRes.picker && cobaltRes.picker[0]?.url);
         if (streamUrl) {
           const fid = `cobalt_${Date.now()}`;
           const title = cobaltRes.filename ? cobaltRes.filename.replace(/\.[^.]+$/, "") : "Downloaded Media";
@@ -310,10 +339,10 @@ async function standaloneAnalyze(url) {
           directFormatsCache.set(fid, { url: streamUrl, filename: cobaltRes.filename || `${title}.${ext}`, mime: `video/${ext}` });
           return {
             source_id: "cobalt",
-            source_label: "Web Media",
+            source_label: lower.includes("instagram.com") ? "Instagram" : lower.includes("twitter.com") || lower.includes("x.com") ? "X (Twitter)" : "Web Media",
             url: cleanUrl,
             title,
-            thumbnail_url: null,
+            thumbnail_url: (cobaltRes.picker && cobaltRes.picker[0]?.thumb) || null,
             duration: null,
             formats: [
               {
@@ -323,11 +352,53 @@ async function standaloneAnalyze(url) {
                 resolution: "Original",
                 has_audio: true,
                 filesize: null,
-                label: `Media Stream · ${ext.toUpperCase()}`,
+                label: `HD Media Stream · ${ext.toUpperCase()}`,
                 download_url: streamUrl,
               },
             ],
           };
+        }
+      }
+    } catch (_) {}
+  }
+
+  // 5. Instagram direct media metadata extraction fallback
+  if (lower.includes("instagram.com/")) {
+    try {
+      // Try resolving Instagram public embed caption HTML
+      const shortcodeMatch = cleanUrl.match(/\/(?:reel|reels|p|tv)\/([a-zA-Z0-9_-]+)/);
+      if (shortcodeMatch) {
+        const shortcode = shortcodeMatch[1];
+        const embedUrl = `https://www.instagram.com/p/${shortcode}/embed/caption/`;
+        const embedHtml = await nativeHttpGet(embedUrl);
+        if (typeof embedHtml === "string") {
+          const videoMatch = embedHtml.match(/"video_url"\s*:\s*"([^"]+)"/) || embedHtml.match(/<video[^>]+src="([^"]+)"/);
+          if (videoMatch) {
+            let directVideoUrl = videoMatch[1].replace(/\\u0026/g, "&").replace(/&amp;/g, "&");
+            const fid = `ig_${shortcode}`;
+            const title = `Instagram_Reel_${shortcode}`;
+            directFormatsCache.set(fid, { url: directVideoUrl, filename: `${title}.mp4`, mime: "video/mp4" });
+            return {
+              source_id: "instagram_direct",
+              source_label: "Instagram Reel",
+              url: cleanUrl,
+              title: `Instagram Reel (${shortcode})`,
+              thumbnail_url: null,
+              duration: null,
+              formats: [
+                {
+                  id: fid,
+                  type: "video",
+                  container: "mp4",
+                  resolution: "HD",
+                  has_audio: true,
+                  filesize: null,
+                  label: "Original Video · MP4",
+                  download_url: directVideoUrl,
+                },
+              ],
+            };
+          }
         }
       }
     } catch (_) {}
@@ -410,8 +481,10 @@ export const api = {
   dependencies: async () => {
     if (isAndroidApp() && !getBackendBaseUrl()) {
       return {
-        ffmpeg: { available: true, version: "Android Native Media" },
-        ytdlp: { available: true, version: "Direct Mobile Extractor" },
+        backend: { ok: true, version: "2.0.0 (Native Mobile)" },
+        python: { ok: true, version: "Standalone Engine" },
+        ffmpeg: { ok: true, version: "Android Native Media" },
+        extractor: { ok: true, version: "Universal Mobile Extractor" },
       };
     }
     try {
@@ -419,8 +492,10 @@ export const api = {
     } catch (err) {
       if (isAndroidApp()) {
         return {
-          ffmpeg: { available: true, version: "Android Native Media" },
-          ytdlp: { available: true, version: "Direct Mobile Extractor" },
+          backend: { ok: true, version: "2.0.0 (Native Mobile)" },
+          python: { ok: true, version: "Standalone Engine" },
+          ffmpeg: { ok: true, version: "Android Native Media" },
+          extractor: { ok: true, version: "Universal Mobile Extractor" },
         };
       }
       throw err;

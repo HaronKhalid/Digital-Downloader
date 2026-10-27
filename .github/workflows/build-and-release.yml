@@ -82,11 +82,18 @@ jobs:
         run: |
           python scripts/package_app.py
 
+      - name: Build Windows Installer (Inno Setup)
+        run: |
+          choco install innosetup -y
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+        shell: powershell
+
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
         with:
           name: DigitalDownloader-windows-x64
           path: |
+            dist/DigitalDownloader-Setup.exe
             dist/DigitalDownloader.exe
             dist/DigitalDownloader-windows-x64.zip
           retention-days: 14
@@ -231,7 +238,7 @@ jobs:
           elif [[ "$GITHUB_REF" =~ ^refs/tags/ ]]; then
             echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           else
-            echo "TAG_NAME=v2.0.0-dev" >> $GITHUB_OUTPUT
+            echo "TAG_NAME=v2.0.0" >> $GITHUB_OUTPUT
           fi
 
       - name: Create GitHub Release
@@ -246,9 +253,10 @@ jobs:
             Cross-platform standalone media downloader for Windows, Android, and Linux.
 
             #### 📦 Downloads:
-            - **Windows**: `DigitalDownloader.exe` / `DigitalDownloader-windows-x64.zip` (standalone desktop app, no external dependencies required)
-            - **Android APK**: `DigitalDownloader.apk` (standalone mobile app with native download manager support)
-            - **Linux**: `DigitalDownloader-linux-x64` (standalone executable)
+            - **Windows Installer**: `DigitalDownloader-Setup.exe` (One-click installer wizard with Start Menu & Desktop shortcuts)
+            - **Windows Portable**: `DigitalDownloader-windows-x64.zip` (Dedicated native desktop application window, all engines bundled)
+            - **Android APK**: `DigitalDownloader.apk` (Standalone on-device mobile app, no PC server required)
+            - **Linux Standalone**: `DigitalDownloader-linux-x64` (Standalone executable)
 
             #### ✨ Key Features:
             - **Standalone**: No manual Python or FFmpeg installation required.

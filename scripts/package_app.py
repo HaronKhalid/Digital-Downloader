@@ -93,6 +93,12 @@ def build_pyinstaller() -> Path:
         "core",
         "--hidden-import",
         "core",
+        "--collect-all",
+        "webview",
+        "--collect-all",
+        "pythonnet",
+        "--collect-all",
+        "clr_loader",
     ]
     if icon_path.is_file():
         cmd.extend(["--icon", str(icon_path)])
@@ -116,13 +122,55 @@ def create_zip_archive(exe_path: Path) -> Path:
         "Digital Downloader - Standalone Desktop App\n"
         "===========================================\n\n"
         "How to use:\n"
-        "1. Double-click DigitalDownloader.exe to start.\n"
-        "2. The app will launch smoothly without terminal windows and open your browser automatically.\n"
-        "3. (Optional) Run Create-Desktop-Shortcut.bat to add a convenient icon to your Desktop.\n\n"
+        "Option A (One-Click Installer - Recommended):\n"
+        "  Double-click Install-DigitalDownloader.bat.\n"
+        "  This installs Digital Downloader, creates Start Menu & Desktop icons,\n"
+        "  and launches the app directly.\n\n"
+        "Option B (Direct Portable Run):\n"
+        "  Double-click DigitalDownloader.exe to start immediately in a dedicated desktop window.\n"
+        "  (Optional) Run Create-Desktop-Shortcut.bat to add an icon to your Desktop.\n\n"
         "Features:\n"
+        "- Native Desktop Window: Opens as a real desktop application (no browser tabs).\n"
         "- Standalone & Bundled: No Python or FFmpeg installation required.\n"
         "- All media engines (yt-dlp, FFmpeg, FFprobe) are fully bundled.\n"
-        "- Downloads save to your Downloads folder or any folder you choose in Settings.\n"
+        "- Downloads save to your Downloads folder or any custom directory set in Settings.\n"
+    )
+
+    install_bat = (
+        "@echo off\r\n"
+        "setlocal enabledelayedexpansion\r\n"
+        "title Digital Downloader Setup\r\n"
+        "echo ========================================================\r\n"
+        "echo    Digital Downloader - Desktop Installer\r\n"
+        "echo ========================================================\r\n"
+        "echo.\r\n"
+        "set \"INSTALL_DIR=%LOCALAPPDATA%\\DigitalDownloader\"\r\n"
+        "echo [1/3] Installing application to %INSTALL_DIR%...\r\n"
+        "if not exist \"%INSTALL_DIR%\" mkdir \"%INSTALL_DIR%\"\r\n"
+        "copy /y \"%~dp0DigitalDownloader.exe\" \"%INSTALL_DIR%\\\" >nul\r\n"
+        "echo [2/3] Creating Start Menu and Desktop shortcuts...\r\n"
+        "set SCRIPT=\"%TEMP%\\dd-install-%RANDOM%.vbs\"\r\n"
+        "echo Set oWS = WScript.CreateObject(\"WScript.Shell\") > %SCRIPT%\r\n"
+        "echo sDesk = oWS.SpecialFolders(\"Desktop\") ^& \"\\Digital Downloader.lnk\" >> %SCRIPT%\r\n"
+        "echo Set oLink = oWS.CreateShortcut(sDesk) >> %SCRIPT%\r\n"
+        "echo oLink.TargetPath = \"%INSTALL_DIR%\\DigitalDownloader.exe\" >> %SCRIPT%\r\n"
+        "echo oLink.WorkingDirectory = \"%INSTALL_DIR%\" >> %SCRIPT%\r\n"
+        "echo oLink.Description = \"Digital Downloader\" >> %SCRIPT%\r\n"
+        "echo oLink.Save >> %SCRIPT%\r\n"
+        "echo sProg = oWS.SpecialFolders(\"Programs\") ^& \"\\Digital Downloader.lnk\" >> %SCRIPT%\r\n"
+        "echo Set oLink2 = oWS.CreateShortcut(sProg) >> %SCRIPT%\r\n"
+        "echo oLink2.TargetPath = \"%INSTALL_DIR%\\DigitalDownloader.exe\" >> %SCRIPT%\r\n"
+        "echo oLink2.WorkingDirectory = \"%INSTALL_DIR%\" >> %SCRIPT%\r\n"
+        "echo oLink2.Description = \"Digital Downloader\" >> %SCRIPT%\r\n"
+        "echo oLink2.Save >> %SCRIPT%\r\n"
+        "cscript /nologo %SCRIPT%\r\n"
+        "if exist %SCRIPT% del %SCRIPT%\r\n"
+        "echo [3/3] Installation completed successfully!\r\n"
+        "echo.\r\n"
+        "echo Launching Digital Downloader...\r\n"
+        "start \"\" \"%INSTALL_DIR%\\DigitalDownloader.exe\"\r\n"
+        "timeout /t 2 >nul\r\n"
+        "exit\r\n"
     )
 
     shortcut_bat = (
@@ -138,13 +186,14 @@ def create_zip_archive(exe_path: Path) -> Path:
         "cscript /nologo %SCRIPT%\r\n"
         "if exist %SCRIPT% del %SCRIPT%\r\n"
         "echo Shortcut created on your Desktop!\r\n"
-        "timeout /t 3 >nul\r\n"
+        "timeout /t 2 >nul\r\n"
     )
 
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.write(exe_path, arcname="DigitalDownloader.exe")
-        zf.writestr("README.txt", readme_content)
+        zf.writestr("Install-DigitalDownloader.bat", install_bat)
         zf.writestr("Create-Desktop-Shortcut.bat", shortcut_bat)
+        zf.writestr("README.txt", readme_content)
 
     size_mb = zip_path.stat().st_size / (1024 * 1024)
     print(f">> Release archive created: {zip_path.name} ({size_mb:.1f} MB)")

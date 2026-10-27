@@ -1,0 +1,44 @@
+; Inno Setup Script for Digital Downloader
+; Generates DigitalDownloader-Setup.exe installer
+
+#define MyAppName "Digital Downloader"
+#define MyAppVersion "2.0.0"
+#define MyAppPublisher "Digital Takhleeq"
+#define MyAppURL "https://github.com/HaronKhalid/Digital-Downloader"
+#define MyAppExeName "DigitalDownloader.exe"
+
+[Setup]
+AppId={{5E3B8F20-80E2-4D9D-9F31-92D1F3507B92}
+AppName={#MyAppName}
+AppVersion={#MyAppVersion}
+AppPublisher={#MyAppPublisher}
+AppPublisherURL={#MyAppURL}
+AppSupportURL={#MyAppURL}
+AppUpdatesURL={#MyAppURL}
+DefaultDirName={localappdata}\{#MyAppName}
+DisableProgramGroupPage=yes
+OutputDir=dist
+OutputBaseFilename=DigitalDownloader-Setup
+SetupIconFile=Assets\app_icon.ico
+Compression=lzma2/ultra64
+SolidCompression=yes
+WizardStyle=modern
+PrivilegesRequired=lowest
+
+[Languages]
+Name: "english"; MessagesFile: "compiler:Default.isl"
+
+[Tasks]
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+
+[Files]
+Source: "dist\DigitalDownloader.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "bin\*"; DestDir: "{app}\bin"; Flags: ignoreversion recursesubdirs createallsubdirs; Tasks: ; Flags: ignoreversion
+Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion
+
+[Icons]
+Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyAppExeName}"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+
+[Run]
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent

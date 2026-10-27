@@ -59,22 +59,61 @@ import uvicorn
 from backend.app.main import create_app
 
 
-def open_browser_when_ready(port: int, max_wait: float = 10.0) -> None:
-    """Poll health endpoint and open browser once server is listening."""
+def wait_for_server(port: int, max_wait: float = 10.0) -> bool:
+    """Poll health endpoint until the internal loopback server is ready."""
     import urllib.request
 
-    url = f"http://127.0.0.1:{port}"
+    url = f"http://127.0.0.1:{port}/api/health"
     deadline = time.monotonic() + max_wait
     while time.monotonic() < deadline:
         try:
-            with urllib.request.urlopen(f"{url}/api/health", timeout=1.0) as resp:
+            with urllib.request.urlopen(url, timeout=0.8) as resp:
                 if resp.status == 200:
-                    time.sleep(0.3)
-                    webbrowser.open(url)
-                    return
+                    return True
         except Exception:
-            time.sleep(0.3)
-    # Fallback open if poll timed out
+            time.sleep(0.15)
+    return False
+
+
+def launch_native_desktop_window(port: int) -> None:
+    """Open a direct, dedicated native application window without browser chrome or tabs."""
+    url = f"http://127.0.0.1:{port}"
+
+    # 1. Primary: Use pywebview (WebView2 / Edge Chromium engine) for native window
+    try:
+        import webview
+        window = webview.create_window(
+            title="Digital Downloader",
+            url=url,
+            width=1120,
+            height=760,
+            min_size=(800, 560),
+            background_color="#0b0f17",
+        )
+        webview.start(debug=False)
+        return
+    except Exception:
+        pass
+
+    # 2. Secondary fallback: Microsoft Edge in dedicated App Mode (frameless standalone window)
+    import subprocess
+    candidates = [
+        os.path.expandvars(r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"),
+        os.path.expandvars(r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"),
+        os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\Edge\Application\msedge.exe"),
+        os.path.expandvars(r"%ProgramFiles%\Google\Chrome\Application\chrome.exe"),
+        os.path.expandvars(r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"),
+    ]
+    for exe in candidates:
+        if os.path.isfile(exe):
+            try:
+                proc = subprocess.Popen([exe, f"--app={url}", "--new-window"])
+                proc.wait()
+                return
+            except Exception:
+                pass
+
+    # 3. Last-resort fallback: open default browser tab
     webbrowser.open(url)
 
 
@@ -85,18 +124,31 @@ def main() -> None:
     try:
         print("=" * 60)
         print(" Digital Downloader - Standalone Desktop App")
-        print(f" Access URL: http://127.0.0.1:{port}")
+        print(f" Internal loopback: http://127.0.0.1:{port}")
         print(" Binaries (FFmpeg, FFprobe, yt-dlp) bundled and ready.")
         print("=" * 60)
     except Exception:
         pass
 
-    # Launch browser in background
-    browser_thread = threading.Thread(target=open_browser_when_ready, args=(port,), daemon=True)
-    browser_thread.start()
-
     app = create_app()
-    uvicorn.run(app, host=bind_host, port=port, log_level="warning")
+
+    # Start FastAPI backend in a background daemon thread
+    server_thread = threading.Thread(
+        target=uvicorn.run,
+        args=(app,),
+        kwargs={"host": bind_host, "port": port, "log_level": "warning"},
+        daemon=True,
+    )
+    server_thread.start()
+
+    # Wait for server readiness
+    wait_for_server(port)
+
+    # Launch native desktop application window (blocks until user closes the window)
+    launch_native_desktop_window(port)
+
+    # Clean exit when window is closed
+    sys.exit(0)
 
 
 if __name__ == "__main__":

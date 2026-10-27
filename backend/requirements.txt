@@ -6,3 +6,6 @@ pydantic==2.14.1
 yt-dlp==2026.10.21
 # TLS fingerprint impersonation for yt-dlp to access modern platforms (Instagram, TikTok, Vimeo, etc.)
 curl_cffi>=0.7.0
+# Native desktop window (WebView2) for standalone Windows desktop app
+pywebview>=5.0.0
+

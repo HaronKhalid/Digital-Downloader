@@ -88,12 +88,16 @@ async function refreshDependencies() {
   try {
     const deps = await api.dependencies();
     renderDependencies(deps);
+    if (window.AndroidBridge) {
+      setStatus("ok", "Ready");
+      return;
+    }
     if (!deps.ffmpeg.ok) setStatus("warn", "FFmpeg not found");
     else if (!deps.extractor.ok) setStatus("warn", "Media extractor not installed");
     else setStatus("ok", `Ready · FFmpeg ${deps.ffmpeg.version.split("-")[0]}`);
   } catch (error) {
     if (window.AndroidBridge) {
-      setStatus("warn", "Connect PC in Settings ⚙️");
+      setStatus("ok", "Ready");
     } else {
       setStatus("error", "Backend offline");
     }

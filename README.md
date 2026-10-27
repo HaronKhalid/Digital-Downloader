@@ -1,17 +1,22 @@
 # Digital Downloader v2
 
-A modern, fast, cross-platform media downloader for YouTube, TikTok, Instagram, Twitter/X, Facebook, direct links, and 1,000+ supported sites.
+A fast, privacy-first media downloader for YouTube, TikTok, Instagram, Twitter/X, Facebook, direct links, and the many other sites supported by [yt-dlp](https://github.com/yt-dlp/yt-dlp).
 
 > **One product. One core. Multiple platform adapters.**  
-> Built as truly standalone applications for **Windows**, **Android**, and **Linux** with no external server or manual Python/FFmpeg installation prerequisites.
+> Desktop (**Windows**, **Linux**) ships with bundled yt-dlp and FFmpeg: no Python or FFmpeg install needed.
+
+> **Android status (honest note):** the Android app currently receives shared links and downloads
+> through public web services, so quality is limited and availability depends on those services.
+> A fully on-device engine (yt-dlp + FFmpeg inside the app, background queue) is the next milestone.
+> See [`docs/roadmap.md`](docs/roadmap.md).
 
 ---
 
 ### ✨ Key Features:
-- **Zero Configuration Standalone:** Works out of the box with bundled multimedia runtimes.
-- **Universal Extraction:** Automatic support for all major media platforms and direct streams.
-- **Quality & Format Selection:** Choose from 4K/2K/1080p down to 144p or extract audio (MP3/M4A/Opus).
-- **Independent Android App:** Direct on-device extraction, native Android `DownloadManager` background downloading, system notifications, and Share Sheet integration.
+- **Zero Configuration on Desktop:** Works out of the box with bundled multimedia runtimes.
+- **Universal Extraction:** Works with a very wide range of sites; support depends on yt-dlp and changes as sites change.
+- **Quality & Format Selection:** Choose the highest available quality down to the smallest, or extract audio (MP3/M4A/Opus).
+- **Android Share Target:** Share a link from any app to Digital Downloader (on-device engine in progress).
 - **History & Management:** Persistent download history with instant "Open file" and "Folder" actions.
 - **Security Hardened:** Safe argument-list subprocess execution (`shell=False`), loopback binding guardrails (`127.0.0.1`), and path traversal sanitization.
 - **Decoupled Architecture:** Clean `core/` domain engine powering platform adapters for Windows, Android, and Linux.
@@ -23,8 +28,8 @@ A modern, fast, cross-platform media downloader for YouTube, TikTok, Instagram, 
 | Platform | Format | Integration | Dependency |
 |---|---|---|---|
 | **Windows** | `.exe` / `.zip` | Bundled `yt-dlp` + `ffmpeg` | None (Fully Standalone) |
-| **Android** | `.apk` | Native Share Target + MediaStore | None (Fully Standalone) |
-| **Linux** | Standalone Binary / AppImage | Bundled runtime + local storage | None (Fully Standalone) |
+| **Android** | `.apk` | Share Target; web-service extraction (on-device engine in progress) | Internet |
+| **Linux** | Standalone binary | Bundled runtime + local storage | None (Fully Standalone) |
 
 ---
 

@@ -503,7 +503,8 @@ def test_unknown_or_malformed_job_ids_are_plain_not_found(service, bad):
 def test_queued_job_waits_for_the_running_one_and_can_be_cancelled(service, settings):
     block = threading.Event()
     src = ScriptedSource(block=block)
-    svc = service(src)  # max_parallel_jobs defaults to 1
+    object.__setattr__(settings, "max_parallel_jobs", 1)  # default is 3; this test needs strict serial order
+    svc = service(src)
     first = svc.create("https://media.example/v", "v1", None)
     assert src.started.wait(5)
     second = svc.create("https://media.example/v", "v1", None)

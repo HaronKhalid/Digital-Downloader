@@ -40,8 +40,15 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
+      # Installed from Ubuntu's own package mirror: more reliable than downloading
+      # a binary from a third-party action (that step failed intermittently).
       - name: Set up FFmpeg
-        uses: FedericoCarboni/setup-ffmpeg@v3
+        run: |
+          for attempt in 1 2 3; do
+            sudo apt-get update -y && sudo apt-get install -y --no-install-recommends ffmpeg && break
+            echo "apt attempt $attempt failed, retrying..."; sleep 10
+          done
+          ffmpeg -version | head -1
 
       - name: Install dependencies
         run: |

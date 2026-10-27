@@ -36,3 +36,6 @@ release-assets/
 # Signing keys (never commit)
 *.jks
 *.keystore
+
+# In-app updated yt-dlp binary
+data/bin/

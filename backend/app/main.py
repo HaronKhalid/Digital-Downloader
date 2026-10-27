@@ -19,6 +19,9 @@ from .core.security import LocalOnlyMiddleware
 from .services.download_service import DownloadService
 from .services.history_service import HistoryService
 from .services.job_service import AnalysisCache, JobService
+from .services.queue_store import QueueStore
+from .services.sources.ytdlp import detect_ytdlp, managed_ytdlp_dir
+from .services.ytdlp_updater import YtDlpUpdater
 from .services.os_open import open_in_os
 from .services.settings_service import SettingsService
 from .services.source_service import SourceService, build_source_service
@@ -35,6 +38,7 @@ def create_app(
     history_service: HistoryService | None = None,
     settings_service: SettingsService | None = None,
     opener=open_in_os,
+    ytdlp_updater: YtDlpUpdater | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings.log_level)
@@ -77,6 +81,7 @@ def create_app(
         DownloadService(settings),
         app.state.analysis_cache,
         history=app.state.history_service,
+        store=QueueStore(settings.database_path),
     )
     from core.engine import DownloaderEngine
 
@@ -87,6 +92,9 @@ def create_app(
         settings_service=app.state.settings_service,
     )
     app.state.opener = opener
+    app.state.ytdlp_updater = ytdlp_updater or YtDlpUpdater(
+        managed_ytdlp_dir(), current_version=lambda: detect_ytdlp()[1]
+    )
 
 
     app.add_middleware(

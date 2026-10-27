@@ -75,12 +75,15 @@ class JobService:
         downloader: DownloadService,
         cache: AnalysisCache,
         history=None,
+        store=None,
     ) -> None:
         self._settings = settings
         self._sources = sources
         self._downloader = downloader
         self._cache = cache
         self._history = history
+        self._store = store  # optional QueueStore: makes the queue survive restarts
+        self._shutting_down = False
         self._records: dict[str, JobRecord] = {}
         self._queue: queue.Queue[str | None] = queue.Queue()
         self._lock = threading.Lock()
@@ -91,13 +94,53 @@ class JobService:
     def start(self) -> None:
         if self._workers:
             return
+        self._shutting_down = False
         for n in range(self._settings.max_parallel_jobs):
             worker = threading.Thread(target=self._work, name=f"job-worker-{n}", daemon=True)
             worker.start()
             self._workers.append(worker)
+        if self._store is not None:
+            # Re-analysis needs the network, so restore in the background instead of delaying startup.
+            threading.Thread(target=self.restore, name="queue-restore", daemon=True).start()
+
+    def _persist_finished(self, job: Job) -> None:
+        """Save a terminal status. Jobs cancelled only because the app is closing stay restorable."""
+        if self._store is None:
+            return
+        if self._shutting_down and job.status is JobStatus.CANCELLED:
+            return
+        try:
+            self._store.finish(job)
+        except Exception as exc:  # persistence must never break a download
+            logger.error("failed to persist job state: %s", exc)
+
+    def restore(self) -> int:
+        """Re-queue downloads that were waiting or running when the app last stopped. Returns how many."""
+        if self._store is None:
+            return 0
+        restored = 0
+        for stored in self._store.pending()[:MAX_ACTIVE_JOBS]:
+            self._store.delete(stored.id)  # the re-created job gets a fresh id and row
+            try:
+                self.create(stored.url, stored.format_id, stored.output_format)
+                restored += 1
+            except AppError as exc:
+                logger.warning("could not restore job: %s", exc.message, extra={"job_id": stored.id})
+                self._store_failed(stored, exc.message)
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.error("could not restore job: %s", exc, extra={"job_id": stored.id})
+        if restored:
+            logger.info("restored queued downloads", extra={"operation": "restore", "status": f"{restored} restored"})
+        return restored
+
+    def _store_failed(self, stored, message: str) -> None:
+        job = Job(url=stored.url, title=stored.title, format_id=stored.format_id, output_format=stored.output_format)
+        job.fail("RESTORE_FAILED", message)
+        self._persist_finished(job)
 
     def shutdown(self, timeout: float = 15.0) -> None:
         """Cancel everything and wait for workers, so no download or FFmpeg process outlives the server."""
+        self._shutting_down = True
         with self._lock:
             records = list(self._records.values())
         for record in records:
@@ -121,6 +164,7 @@ class JobService:
             if record is None or record.job.status is not JobStatus.QUEUED:
                 continue  # cancelled while waiting
             self._downloader.run(record.job, record.source, record.url, record.info, record.plan)
+            self._persist_finished(record.job)
             if record.job.status is JobStatus.COMPLETED and self._history is not None:
                 try:
                     format_label = getattr(record.plan, "output_ext", "").upper()
@@ -158,6 +202,11 @@ class JobService:
             if active >= MAX_ACTIVE_JOBS:
                 raise AppError(ErrorCode.INVALID_REQUEST, "Too many downloads are waiting. Let some finish first.", status_code=429, reason="queue_full")
             self._records[job.id] = JobRecord(job, source, validated, info, plan)
+        if self._store is not None:
+            try:
+                self._store.add(job)
+            except Exception as exc:
+                logger.error("failed to persist new job: %s", exc)
         self._queue.put(job.id)
         logger.info("job queued", extra={"job_id": job.id, "operation": "create", "status": "queued"})
         return job
@@ -176,6 +225,11 @@ class JobService:
     def get(self, job_id: str) -> Job:
         return self._record(job_id).job
 
+    def active_count(self) -> int:
+        """Downloads that are queued or running."""
+        with self._lock:
+            return sum(1 for r in self._records.values() if r.job.status not in TERMINAL)
+
     def list(self, limit: int = 20) -> list[Job]:
         with self._lock:
             jobs = [r.job for r in self._records.values()]
@@ -185,9 +239,69 @@ class JobService:
         job = self.get(job_id)
         if job.status in TERMINAL:
             raise AppError(ErrorCode.INVALID_REQUEST, "That download has already finished.", status_code=409, reason="already_terminal")
-        if not job.cancel_if_queued():
+        if job.cancel_if_queued():
+            self._persist_finished(job)
+        else:
             job.cancel_event.set()  # running: the runner stops its process/transfer and cleans up
         return job
+
+    def retry(self, job_id: str) -> Job:
+        """Start a fresh download for a failed or cancelled one (works after a restart too)."""
+        try:
+            canonical = str(uuid.UUID(str(job_id)))
+        except ValueError:
+            raise _not_found() from None
+        with self._lock:
+            record = self._records.get(canonical)
+        if record is not None:
+            old = record.job
+            if old.status not in (JobStatus.FAILED, JobStatus.CANCELLED):
+                raise AppError(ErrorCode.INVALID_REQUEST, "Only failed or cancelled downloads can be retried.", status_code=409, reason="not_retryable")
+            url, format_id, output_format = old.url, old.format_id, old.output_format
+        else:
+            stored = self._store.get(canonical) if self._store is not None else None
+            if stored is None:
+                raise _not_found()
+            if stored.status not in (JobStatus.FAILED.value, JobStatus.CANCELLED.value):
+                raise AppError(ErrorCode.INVALID_REQUEST, "Only failed or cancelled downloads can be retried.", status_code=409, reason="not_retryable")
+            url, format_id, output_format = stored.url, stored.format_id, stored.output_format
+        new_job = self.create(url, format_id, output_format)
+        if self._store is not None:
+            self._store.delete(canonical)  # the failed row is replaced by the new attempt
+        with self._lock:
+            self._records.pop(canonical, None)
+        return new_job
+
+    def create_batch(self, urls: list[str], mode: str = "best") -> list[dict]:
+        """Queue several links at once, picking a format automatically. One bad link never blocks the rest."""
+        from concurrent.futures import ThreadPoolExecutor
+
+        from core.formats.selector import pick_best
+
+        unique: list[str] = []
+        for raw in urls:
+            url = raw.strip()
+            if url and url not in unique:
+                unique.append(url)
+
+        def one(url: str) -> dict:
+            try:
+                validated = validate_url(url, allowed_ports=self._settings.allowed_ports)
+                info = self._cache.get(validated.url) or self._sources.analyze(validated)
+                self._cache.put(info)
+                fmt = pick_best(info.formats, mode)
+                if fmt is None:
+                    raise AppError(ErrorCode.FORMAT_NOT_AVAILABLE, "No downloadable format was found.", reason="no_format")
+                job = self.create(validated.url, fmt.id, None)
+                return {"url": url, "ok": True, "job_id": job.id, "title": job.title, "error": None}
+            except AppError as exc:
+                return {"url": url, "ok": False, "job_id": None, "title": None, "error": exc.message}
+            except Exception as exc:  # never let one link break the whole batch
+                logger.error("batch item failed: %s", exc)
+                return {"url": url, "ok": False, "job_id": None, "title": None, "error": "Could not process this link."}
+
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            return list(pool.map(one, unique))
 
     def completed_file(self, job_id: str) -> Path:
         """Path of a completed job's output, verified to be a media file inside the output directory."""

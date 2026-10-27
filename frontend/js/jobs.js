@@ -99,10 +99,11 @@ function render(job) {
       els.jobMessage.textContent = "Processing media…";
       showButtons(["cancel"]);
       break;
-    case "completed":
-      state.lastJobId = job.id;
-      if (els.jobOpenFile) els.jobOpenFile.dataset.jobId = job.id;
-      if (els.jobOpenFolder) els.jobOpenFolder.dataset.jobId = job.id;
+    case "completed": {
+      const completedId = job.job_id ?? job.id;
+      state.lastJobId = completedId;
+      if (els.jobOpenFile) els.jobOpenFile.dataset.jobId = completedId;
+      if (els.jobOpenFolder) els.jobOpenFolder.dataset.jobId = completedId;
       if (els.jobHeadTitle) els.jobHeadTitle.textContent = "Download Complete";
       if (els.jobCompleteCheck) els.jobCompleteCheck.hidden = false;
       if (els.jobSaveConfirmation) els.jobSaveConfirmation.hidden = false;
@@ -122,6 +123,7 @@ function render(job) {
       showButtons(["openFile", "openFolder", "another"]);
       document.dispatchEvent(new CustomEvent("pm:job-completed", { detail: job }));
       break;
+    }
     case "failed":
       if (els.jobHeadTitle) els.jobHeadTitle.textContent = "Download Failed";
       if (els.jobCompleteCheck) els.jobCompleteCheck.hidden = true;
@@ -202,6 +204,7 @@ async function begin(request) {
     showButtons(["cancel"]);
     showPanel(getSelection()?.format ? document.getElementById("media-title").textContent : "Download");
     showNotice("info", "Download started.");
+    document.dispatchEvent(new CustomEvent("pm:job-created", { detail: { jobId } }));
     poll(jobId);
   } catch (error) {
     syncDownloadButton();
@@ -283,12 +286,13 @@ export async function resumeIfRunning() {
     const jobs = await api.listJobs();
     const active = jobs.find((j) => !TERMINAL.has(j.status));
     if (active) {
-      state.activeJobId = active.id;
-      state.lastJobId = active.id;
+      const activeId = active.job_id ?? active.id;
+      state.activeJobId = activeId;
+      state.lastJobId = activeId;
       syncDownloadButton();
       showPanel(active.title);
       render(active);
-      poll(active.id);
+      poll(activeId);
     }
   } catch {
     /* backend down or initial connection */

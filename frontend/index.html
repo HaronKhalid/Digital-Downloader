@@ -155,6 +155,11 @@
             <div class="command-actions">
               <button type="button" class="button quiet small" id="paste-button">Paste</button>
               <button type="button" class="button quiet small" id="clear-button" hidden>Clear</button>
+              <label class="visually-hidden" for="batch-mode">Batch download type</label>
+              <select id="batch-mode" class="batch-mode" hidden>
+                <option value="best">Best quality</option>
+                <option value="audio">Audio only</option>
+              </select>
               <button type="submit" class="button primary analyze-cta" id="analyze-button">Analyze</button>
             </div>
           </form>
@@ -163,6 +168,17 @@
             <p id="notice-text">Paste a media URL to begin.</p>
           </div>
 
+        </section>
+
+        <!-- Download queue: every queued, running and finished download -->
+        <section class="queue" id="queue-section" aria-labelledby="queue-title" hidden>
+          <div class="history-head">
+            <h2 id="queue-title">Downloads</h2>
+            <div class="history-head-actions">
+              <button type="button" class="history-view-all" id="queue-clear-finished">Clear finished</button>
+            </div>
+          </div>
+          <ul class="queue-list" id="queue-list" aria-live="polite"></ul>
         </section>
 
         <!-- Download History -->
@@ -387,6 +403,16 @@
           <p class="field-hint" id="cookies-save-message" role="status" aria-live="polite"></p>
         </div>
       </details>
+
+      <div class="field setting-field extractor-field">
+        <label for="extractor-check-button">Media extractor (yt-dlp)</label>
+        <p class="field-hint" id="extractor-update-text">Websites change often. Keep the extractor up to date so downloads keep working.</p>
+        <div class="extractor-actions">
+          <button type="button" class="button quiet small" id="extractor-check-button">Check for updates</button>
+          <button type="button" class="button primary small" id="extractor-update-button" hidden>Update now</button>
+        </div>
+        <p class="field-hint" id="extractor-update-message" role="status" aria-live="polite"></p>
+      </div>
 
       <h3>Dependencies</h3>
       <ul id="dependency-list" class="dependency-list" aria-live="polite">

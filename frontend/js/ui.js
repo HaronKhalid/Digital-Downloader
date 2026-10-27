@@ -91,6 +91,16 @@ export const els = {
   jobRetry: $("job-retry"),
   jobAnother: $("job-another"),
 
+  // Queue, batch and extractor update
+  queueSection: $("queue-section"),
+  queueList: $("queue-list"),
+  queueClear: $("queue-clear-finished"),
+  batchMode: $("batch-mode"),
+  extractorText: $("extractor-update-text"),
+  extractorCheck: $("extractor-check-button"),
+  extractorUpdate: $("extractor-update-button"),
+  extractorMessage: $("extractor-update-message"),
+
   historyEmpty: $("history-empty"),
   historyList: $("history-list"),
   refreshHistory: $("refresh-history-button"),

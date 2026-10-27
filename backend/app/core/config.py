@@ -60,7 +60,7 @@ class Settings:
             )
         try:
             port = int(env.get("PORT", "8000"))
-            max_jobs = int(env.get("MAX_PARALLEL_JOBS", "1"))
+            max_jobs = int(env.get("MAX_PARALLEL_JOBS", "3"))
             max_gb = int(env.get("MAX_DOWNLOAD_GB", "20"))
         except ValueError as exc:
             raise ConfigError("PORT and MAX_PARALLEL_JOBS must be integers.") from exc

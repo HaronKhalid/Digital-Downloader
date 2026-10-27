@@ -1,6 +1,7 @@
 import { api, ApiError, getBackendBaseUrl, setBackendBaseUrl } from "./api.js";
 import { initJobs, resumeIfRunning, hidePanel } from "./jobs.js";
 import { hideMedia, renderMedia } from "./media.js";
+import { initQueue, kickQueue } from "./queue.js";
 import {
   applyTheme,
   els,
@@ -37,8 +38,72 @@ function checkLocally(raw) {
   return null;
 }
 
+/** Every http(s) link in the box, separated by spaces or new lines. Duplicates are dropped. */
+function extractUrls(raw) {
+  const seen = new Set();
+  return (raw || "")
+    .split(/\s+/)
+    .map((part) => part.trim())
+    .filter((part) => part && !seen.has(part) && seen.add(part));
+}
+
+/** Show "Queue N links" and the quality choice when several links are pasted. */
+function syncBatchUi() {
+  const count = extractUrls(els.input.value).length;
+  const multi = count > 1;
+  if (els.batchMode) els.batchMode.hidden = !multi;
+  if (!els.analyze.disabled) els.analyze.textContent = multi ? `Queue ${count} links` : "Analyze";
+}
+
+async function queueBatch(urls) {
+  const bad = urls.find((u) => checkLocally(u));
+  if (bad) {
+    showNotice("error", `"${bad.slice(0, 60)}" is not a valid link. Start each link with https://`);
+    return;
+  }
+  if (urls.length > 25) {
+    showNotice("error", "You can queue up to 25 links at a time.");
+    return;
+  }
+  hideMedia();
+  setBusy(true);
+  showNotice("busy", `Checking ${urls.length} links…`);
+  try {
+    const result = await api.batchJobs(urls, els.batchMode?.value || "best");
+    const failed = result.items.filter((item) => !item.ok);
+    if (result.queued > 0) {
+      document.dispatchEvent(new CustomEvent("pm:job-created", { detail: { batch: true } }));
+      kickQueue();
+    }
+    if (failed.length === 0) {
+      showNotice("success", `Added ${result.queued} downloads to the queue.`);
+      els.input.value = "";
+      syncClearButton();
+    } else {
+      const first = failed[0];
+      showNotice(
+        result.queued > 0 ? "info" : "error",
+        `Queued ${result.queued}, skipped ${failed.length}. ${first.url.slice(0, 40)}: ${first.error}`,
+      );
+      // keep only the links that failed so the user can fix and retry them
+      els.input.value = failed.map((item) => item.url).join(" ");
+      syncClearButton();
+    }
+  } catch (error) {
+    showNotice("error", error instanceof ApiError ? error.message : "Something went wrong. Try again.");
+  } finally {
+    setBusy(false);
+    syncBatchUi();
+  }
+}
+
 async function analyze(event) {
   event.preventDefault();
+  const links = extractUrls(els.input.value);
+  if (links.length > 1) {
+    await queueBatch(links);
+    return;
+  }
   const url = (els.input.value || "").trim();
   const problem = checkLocally(url);
   if (problem) {
@@ -75,12 +140,14 @@ async function pasteFromClipboard() {
     } catch (_) {}
   }
   if (text) {
-    text = text.replace(/[\\/\s]+$/, "").trim();
+    text = text.replace(/[\\/\s]+$/, "").trim().replace(/\s+/g, " ");
     els.input.value = text;
     hideMedia();
     syncClearButton();
+    syncBatchUi();
     els.input.focus();
-    showNotice("info", "Link pasted. Press Analyze to inspect.");
+    const count = extractUrls(text).length;
+    showNotice("info", count > 1 ? `${count} links pasted. Press Queue to add them all.` : "Link pasted. Press Analyze to inspect.");
   } else {
     showNotice("info", "Clipboard is empty or access was not granted.");
     els.input.focus();
@@ -91,6 +158,7 @@ function clearInput() {
   els.input.value = "";
   hideMedia();
   syncClearButton();
+  syncBatchUi();
   showNotice("info", EMPTY_MESSAGE);
   els.input.focus();
 }
@@ -238,6 +306,64 @@ function closeMenu() {
   }, 260);
 }
 
+function setExtractorMessage(kind, text) {
+  if (!els.extractorMessage) return;
+  els.extractorMessage.textContent = text;
+  els.extractorMessage.dataset.kind = kind;
+}
+
+async function checkExtractor() {
+  els.extractorCheck.disabled = true;
+  els.extractorUpdate.hidden = true;
+  setExtractorMessage("", "Checking for updates…");
+  try {
+    const info = await api.checkExtractorUpdate();
+    if (!info.supported) {
+      setExtractorMessage("error", "In-app updates are not available on this system.");
+    } else if (info.update_available) {
+      els.extractorText.textContent = `Installed: ${info.current || "unknown"} · Available: ${info.latest}`;
+      els.extractorUpdate.hidden = false;
+      setExtractorMessage("", "A newer version is available.");
+    } else {
+      els.extractorText.textContent = `Installed: ${info.current || "unknown"}`;
+      setExtractorMessage("ok", "You have the latest version.");
+    }
+  } catch (error) {
+    setExtractorMessage("error", error instanceof ApiError ? error.message : "Could not check for updates.");
+  } finally {
+    els.extractorCheck.disabled = false;
+  }
+}
+
+async function installExtractorUpdate() {
+  els.extractorUpdate.disabled = true;
+  els.extractorCheck.disabled = true;
+  setExtractorMessage("", "Downloading and verifying the update…");
+  try {
+    const result = await api.updateExtractor();
+    els.extractorUpdate.hidden = true;
+    els.extractorText.textContent = `Installed: ${result.installed}`;
+    setExtractorMessage("ok", "Updated. New downloads will use the new version.");
+    refreshDependencies();
+  } catch (error) {
+    setExtractorMessage("error", error instanceof ApiError ? error.message : "The update failed.");
+  } finally {
+    els.extractorUpdate.disabled = false;
+    els.extractorCheck.disabled = false;
+  }
+}
+
+function initExtractorUpdate() {
+  if (!els.extractorCheck || !els.extractorUpdate) return;
+  if (window.AndroidBridge) {
+    // The Android app has no local yt-dlp to update (yet).
+    els.extractorCheck.closest(".extractor-field")?.setAttribute("hidden", "");
+    return;
+  }
+  els.extractorCheck.addEventListener("click", checkExtractor);
+  els.extractorUpdate.addEventListener("click", installExtractorUpdate);
+}
+
 async function start() {
   initTheme();
 
@@ -247,6 +373,17 @@ async function start() {
   els.input.addEventListener("input", () => {
     hideMedia();
     syncClearButton();
+    syncBatchUi();
+  });
+  // A single-line input would glue pasted lines together; turn line breaks into spaces first.
+  els.input.addEventListener("paste", (event) => {
+    const text = event.clipboardData?.getData("text");
+    if (text && /[\r\n]/.test(text)) {
+      event.preventDefault();
+      const cleaned = text.trim().replace(/\s+/g, " ");
+      els.input.setRangeText(cleaned, els.input.selectionStart, els.input.selectionEnd, "end");
+      els.input.dispatchEvent(new Event("input"));
+    }
   });
 
   if (els.menuToggle) {
@@ -417,6 +554,8 @@ async function start() {
   });
 
   initJobs();
+  initQueue();
+  initExtractorUpdate();
   document.addEventListener("pm:new-download", clearInput);
   document.addEventListener("pm:job-completed", () => {
     loadHistory();

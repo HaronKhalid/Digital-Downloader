@@ -51,6 +51,32 @@ class JobList(BaseModel):
     jobs: list[JobOut]
 
 
+class BatchRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    urls: list[str] = Field(min_length=1, max_length=25)
+    mode: Literal["best", "audio"] = "best"
+
+    @model_validator(mode="after")
+    def _limit_url_length(self) -> "BatchRequest":
+        if any(len(u) > 4096 for u in self.urls):
+            raise ValueError("A link is too long.")
+        return self
+
+
+class BatchItem(BaseModel):
+    url: str
+    ok: bool
+    job_id: str | None
+    title: str | None
+    error: str | None
+
+
+class BatchResponse(BaseModel):
+    items: list[BatchItem]
+    queued: int
+    failed: int
+
+
 class OpenRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     action: Literal["file", "folder"]

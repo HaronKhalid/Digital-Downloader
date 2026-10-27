@@ -21,6 +21,23 @@ def sort_formats(formats: Sequence[MediaFormat]) -> list[MediaFormat]:
     return sorted(formats, key=sort_key)
 
 
+def pick_best(formats: Sequence[MediaFormat], mode: str = "best") -> MediaFormat | None:
+    """Choose a format automatically (used for batch downloads).
+
+    ``best``  -> highest resolution video (the job planner pairs it with audio when needed).
+    ``audio`` -> an audio-only format; falls back to the best video if the site has none.
+    """
+    ordered = sort_formats(formats)
+    if mode == "audio":
+        audio = [f for f in ordered if f.type == "audio"]
+        if audio:
+            return audio[0]
+    video = [f for f in ordered if f.type == "video"]
+    if video:
+        return video[0]
+    return ordered[0] if ordered else None
+
+
 def find_format(formats: Sequence[MediaFormat], format_id: str) -> MediaFormat | None:
     """Find a format by its format_id."""
     for f in formats:

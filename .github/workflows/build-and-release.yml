@@ -40,8 +40,15 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
+      # Installed from Ubuntu's own package mirror: more reliable than downloading
+      # a binary from a third-party action (that step failed intermittently).
       - name: Set up FFmpeg
-        uses: FedericoCarboni/setup-ffmpeg@v3
+        run: |
+          for attempt in 1 2 3; do
+            sudo apt-get update -y && sudo apt-get install -y --no-install-recommends ffmpeg && break
+            echo "apt attempt $attempt failed, retrying..."; sleep 10
+          done
+          ffmpeg -version | head -1
 
       - name: Install dependencies
         run: |
@@ -156,33 +163,52 @@ jobs:
           gradle wrapper
           chmod +x gradlew || true
           ./gradlew assembleDebug --stacktrace
-          # Also try assembleRelease (generates unsigned release apk)
-          ./gradlew assembleRelease --stacktrace || true
+          # Release build is unsigned here; it is zip-aligned and signed in the next step.
+          ./gradlew assembleRelease --stacktrace
 
+      # The release key MUST be the same for every release, otherwise Android refuses
+      # to update an installed app. It lives in GitHub Secrets, never in this file:
+      #   ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+      # See docs/release.md for how to create and store it.
       - name: Sign & Package Android APK
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           mkdir -p release-apks
-          keytool -genkey -v -keystore release.keystore -alias digitaldownloader -keyalg RSA -keysize 2048 -validity 10000 -storepass digitaldownloader123 -keypass digitaldownloader123 -dname "CN=Digital Downloader, OU=Digital Takhleeq, O=Digital Takhleeq, L=San Francisco, ST=CA, C=US"
-          
-          APKSIGNER=$(find $ANDROID_HOME/build-tools -name apksigner | sort -V | tail -n 1)
-          echo "Found apksigner at: $APKSIGNER"
-          
-          SRC_APK=""
-          if [ -f "android/app/build/outputs/apk/release/app-release-unsigned.apk" ]; then
-            SRC_APK="android/app/build/outputs/apk/release/app-release-unsigned.apk"
-          elif [ -f "android/app/build/outputs/apk/release/app-release.apk" ]; then
-            SRC_APK="android/app/build/outputs/apk/release/app-release.apk"
-          else
-            SRC_APK="android/app/build/outputs/apk/debug/app-debug.apk"
-          fi
-          echo "Signing source APK: $SRC_APK"
-          
-          $APKSIGNER sign --ks release.keystore --ks-pass pass:digitaldownloader123 --key-pass pass:digitaldownloader123 --out release-apks/DigitalDownloader.apk "$SRC_APK"
-          $APKSIGNER verify --verbose release-apks/DigitalDownloader.apk
-
           if [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
             cp android/app/build/outputs/apk/debug/app-debug.apk release-apks/DigitalDownloader-debug.apk
           fi
+
+          if [ -z "$KEYSTORE_B64" ]; then
+            if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+              echo "::error::Release tag build requires the Android signing secrets (see docs/release.md)."
+              exit 1
+            fi
+            echo "::warning::No signing secrets configured: publishing the debug APK only (not for distribution)."
+            ls -la release-apks/
+            exit 0
+          fi
+
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+          APKSIGNER=$(find $ANDROID_HOME/build-tools -name apksigner | sort -V | tail -n 1)
+
+          SRC_APK="android/app/build/outputs/apk/release/app-release-unsigned.apk"
+          if [ ! -f "$SRC_APK" ]; then
+            echo "::error::Release APK was not built."
+            exit 1
+          fi
+
+          # zipalign first, then sign (required order for apksigner v2+ signatures)
+          ZIPALIGN=$(find $ANDROID_HOME/build-tools -name zipalign | sort -V | tail -n 1)
+          "$ZIPALIGN" -p -f 4 "$SRC_APK" "$RUNNER_TEMP/aligned.apk"
+          "$APKSIGNER" sign --ks "$RUNNER_TEMP/release.keystore" \
+            --ks-pass env:KEYSTORE_PASS --ks-key-alias "$KEY_ALIAS" --key-pass env:KEY_PASS \
+            --out release-apks/DigitalDownloader.apk "$RUNNER_TEMP/aligned.apk"
+          "$APKSIGNER" verify --verbose release-apks/DigitalDownloader.apk
+          rm -f "$RUNNER_TEMP/release.keystore"
           ls -la release-apks/
 
       - name: Upload Android Artifacts
@@ -231,7 +257,9 @@ jobs:
   release:
     name: Publish GitHub Release
     needs: [build-windows, build-android, build-linux]
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v') || github.event.inputs.publish_release == 'true'
+    # Releases are published only for version tags (v*) or an explicit manual run.
+    # A normal push to main builds and tests but never overwrites a release.
+    if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.publish_release == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -266,7 +294,8 @@ jobs:
           elif [[ "$GITHUB_REF" =~ ^refs/tags/ ]]; then
             echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           else
-            echo "TAG_NAME=v2.0.0" >> $GITHUB_OUTPUT
+            echo "::error::No release tag available. Push a tag like v2.0.0 or supply release_tag."
+            exit 1
           fi
 
       - name: Create GitHub Release
@@ -283,7 +312,7 @@ jobs:
             #### 📦 Downloads:
             - **Windows Installer**: `DigitalDownloader-Setup.exe` (One-click installer wizard with Start Menu & Desktop shortcuts)
             - **Windows Portable**: `DigitalDownloader-windows-x64.zip` (Dedicated native desktop application window, all engines bundled)
-            - **Android APK**: `DigitalDownloader.apk` (Standalone on-device mobile app, no PC server required)
+            - **Android APK**: `DigitalDownloader.apk` (Share-to-download app; see the README for current Android limitations)
             - **Linux Standalone**: `DigitalDownloader-linux-x64` (Standalone executable)
 
             #### ✨ Key Features:

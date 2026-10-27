@@ -107,3 +107,40 @@ Settings response object:
 }
 ```
 
+
+## Queue, batch and extractor updates (added in Phase 1)
+
+All routes need the `X-Session-Token` header like the rest of `/api`.
+
+### `POST /api/jobs/batch`
+Queue several links at once and pick a format automatically.
+
+```json
+{ "urls": ["https://...", "https://..."], "mode": "best" }
+```
+`mode` is `best` (highest resolution video) or `audio` (audio-only when the site offers it). 1 to 25 links;
+duplicates are ignored. Response (HTTP 200) reports every link separately, so one bad link never blocks the rest:
+
+```json
+{ "queued": 1, "failed": 1,
+  "items": [ { "url": "...", "ok": true,  "job_id": "...", "title": "...", "error": null },
+             { "url": "...", "ok": false, "job_id": null, "title": null, "error": "This website isn't supported yet." } ] }
+```
+
+### `POST /api/jobs/{job_id}/retry`
+Starts a fresh download from a `failed` or `cancelled` one (also after an app restart). Returns `202` with the
+new `job_id`. `409` if the job is not retryable, `404` if unknown.
+
+### Persistent queue
+Unfinished downloads are saved and re-queued automatically when the app starts again (they get new ids).
+Cancelling a download yourself removes it from the restore list.
+
+### `GET /api/system/extractor/update`
+```json
+{ "current": "2026.10.21", "latest": "2026.11.01", "update_available": true, "supported": true }
+```
+
+### `POST /api/system/extractor/update`
+Downloads the official yt-dlp binary from GitHub, verifies its SHA-256 against the release checksums, runs it to
+confirm the version, then swaps it in atomically. `409` while downloads are running. The updated binary lives in
+`<data>/bin/` and takes priority over the bundled one. Supported on Windows and Linux.

@@ -1,6 +1,15 @@
 from fastapi import APIRouter, Request
 
-from ...schemas.job import CreateJobRequest, CreateJobResponse, JobList, JobOut, OpenRequest
+from ...schemas.job import (
+    BatchItem,
+    BatchRequest,
+    BatchResponse,
+    CreateJobRequest,
+    CreateJobResponse,
+    JobList,
+    JobOut,
+    OpenRequest,
+)
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
@@ -12,6 +21,21 @@ def _service(request: Request):
 @router.post("", response_model=CreateJobResponse, status_code=202)
 def create_job(body: CreateJobRequest, request: Request) -> CreateJobResponse:
     job = _service(request).create(body.url, body.format_id, body.output_format)
+    return CreateJobResponse(job_id=job.id, status=job.status.value)
+
+
+@router.post("/batch", response_model=BatchResponse)
+def create_batch(body: BatchRequest, request: Request) -> BatchResponse:
+    """Queue many links at once (best quality or audio only). Per-link results are returned."""
+    results = _service(request).create_batch(body.urls, body.mode)
+    items = [BatchItem(**r) for r in results]
+    queued = sum(1 for i in items if i.ok)
+    return BatchResponse(items=items, queued=queued, failed=len(items) - queued)
+
+
+@router.post("/{job_id}/retry", response_model=CreateJobResponse, status_code=202)
+def retry_job(job_id: str, request: Request) -> CreateJobResponse:
+    job = _service(request).retry(job_id)
     return CreateJobResponse(job_id=job.id, status=job.status.value)
 
 

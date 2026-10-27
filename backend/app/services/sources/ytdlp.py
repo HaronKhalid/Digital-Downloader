@@ -51,14 +51,24 @@ _RESOLUTION = re.compile(r"^(\d+)p(\d+)?$")
 INSTALL_HINT = "The media extractor (yt-dlp) isn't installed. Run scripts\\setup.ps1 again to install it."
 
 
+def managed_ytdlp_dir() -> Path:
+    """Where the in-app updater installs yt-dlp. A binary here wins over the bundled one."""
+    from ...core.config import USER_DATA_DIR
+
+    return USER_DATA_DIR / "bin"
+
+
 def find_ytdlp_binary() -> Path | None:
-    """Check for standalone yt-dlp binary in bundled and system paths."""
+    """Check for standalone yt-dlp binary in updated, bundled and system paths."""
     env_path = os.environ.get("YTDLP_PATH")
     if env_path and Path(env_path).is_file():
         return Path(env_path)
 
     candidates: list[Path] = []
     exe_name = "yt-dlp.exe" if sys.platform == "win32" else "yt-dlp"
+
+    # 1. A binary installed by the in-app updater (newest, so it takes priority)
+    candidates.append(managed_ytdlp_dir() / exe_name)
 
     # PyInstaller temporary and executable dirs
     if getattr(sys, "frozen", False):
@@ -309,8 +319,13 @@ class YtDlpSource(MediaSource):
         self._settings = settings
         self._runner = runner or default_runner
         self._timeout = timeout
-        self._base_command = list(base_command) if base_command else get_default_base_command()
+        self._explicit_base_command = list(base_command) if base_command else None
         self._fallback_urls: dict[tuple[str, str], str] = {}
+
+    @property
+    def _base_command(self) -> list[str]:
+        # Resolved on every use so a freshly updated yt-dlp is picked up without restarting.
+        return list(self._explicit_base_command) if self._explicit_base_command else get_default_base_command()
 
     def can_handle(self, url: ValidatedURL) -> bool:
         host = url.host

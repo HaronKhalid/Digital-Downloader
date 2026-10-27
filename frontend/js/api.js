@@ -548,8 +548,37 @@ export const api = {
     return request("GET", `/api/jobs/${encodeURIComponent(id)}`);
   },
 
-  listJobs: () => request("GET", "/api/jobs"),
+  listJobs: async () => {
+    const res = await request("GET", "/api/jobs");
+    // The backend returns {jobs: [...]}; normalise so callers always get an array.
+    return Array.isArray(res) ? res : res?.jobs || [];
+  },
   cancelJob: (id) => request("POST", `/api/jobs/${encodeURIComponent(id)}/cancel`),
+  retryJob: (id) => request("POST", `/api/jobs/${encodeURIComponent(id)}/retry`),
+
+  /** Queue several links at once. mode: "best" | "audio". */
+  batchJobs: async (urls, mode = "best") => {
+    if (isAndroidApp() && !getBackendBaseUrl()) {
+      // No local engine: process links one by one through the standalone path.
+      const items = [];
+      for (const url of urls) {
+        try {
+          const info = await standaloneAnalyze(url);
+          const fmt = (mode === "audio" ? info.formats.find((f) => f.type === "audio") : null) || info.formats[0];
+          standaloneCreateJob({ url, format_id: fmt.id });
+          items.push({ url, ok: true, job_id: null, title: info.title, error: null });
+        } catch (err) {
+          items.push({ url, ok: false, job_id: null, title: null, error: err.message || "Could not process this link." });
+        }
+      }
+      const queued = items.filter((i) => i.ok).length;
+      return { items, queued, failed: items.length - queued };
+    }
+    return request("POST", "/api/jobs/batch", { urls, mode });
+  },
+
+  checkExtractorUpdate: () => request("GET", "/api/system/extractor/update"),
+  updateExtractor: () => request("POST", "/api/system/extractor/update"),
 
   openJob: (id, action = "file") => {
     if (isAndroidApp()) {

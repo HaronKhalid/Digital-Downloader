@@ -20,3 +20,12 @@ browser (jsdom) with faked API responses. Needs Node 22+.
 npm install --no-save jsdom
 node e2e/ui_smoke.mjs
 ```
+
+## Android bridge simulation
+
+`e2e/android_smoke.mjs` plays the part of the Android app (a fake `AndroidBridge` that answers like the Kotlin code)
+and checks the page: engine calls, polling, shared links being queued, the Android-only settings and a hostile title.
+
+```bash
+node e2e/android_smoke.mjs
+```

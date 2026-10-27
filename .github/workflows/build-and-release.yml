@@ -160,11 +160,24 @@ jobs:
         env:
           ANDROID_HOME: /usr/local/lib/android/sdk
         run: |
+          set -o pipefail
           gradle wrapper
           chmod +x gradlew || true
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleDebug --stacktrace 2>&1 | tee "$GITHUB_WORKSPACE/gradle-debug.log"
           # Release build is unsigned here; it is zip-aligned and signed in the next step.
-          ./gradlew assembleRelease --stacktrace
+          ./gradlew assembleRelease --stacktrace 2>&1 | tee "$GITHUB_WORKSPACE/gradle-release.log"
+
+      # Shows compiler errors as readable annotations on the run summary page.
+      - name: Report Android build errors
+        if: failure()
+        run: |
+          for f in gradle-debug.log gradle-release.log; do
+            [ -f "$f" ] || continue
+            grep -E '^e: |error:|What went wrong|^> |Could not (resolve|find)|Execution failed' "$f" | sort -u | head -25 | while IFS= read -r line; do
+              line="${line//'%'/%25}"
+              echo "::error title=Android build ($f)::${line:0:800}"
+            done
+          done
 
       # The release key MUST be the same for every release, otherwise Android refuses
       # to update an installed app. It lives in GitHub Secrets, never in this file:

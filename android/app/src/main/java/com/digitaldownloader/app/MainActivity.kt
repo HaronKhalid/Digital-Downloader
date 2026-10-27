@@ -1,9 +1,12 @@
 package com.digitaldownloader.app
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.webkit.MimeTypeMap
@@ -13,23 +16,33 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.FrameLayout
 import android.widget.ProgressBar
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.webkit.WebViewAssetLoader
-import java.util.regex.Pattern
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
     private lateinit var progressBar: ProgressBar
     private lateinit var assetLoader: WebViewAssetLoader
-    var pendingSharedUrl: String? = null
+
+    @Volatile
+    private var pageLoaded = false
+
+    /** Text (one or more links) waiting to be handed to the page. */
+    @Volatile
+    var pendingSharedText: String? = null
+
+    private val permissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { /* nothing to do either way */ }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Setup Asset Loader to serve local assets securely via https://appassets.androidplatform.net/
         assetLoader = WebViewAssetLoader.Builder()
             .setDomain("appassets.androidplatform.net")
             .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
@@ -38,6 +51,8 @@ class MainActivity : AppCompatActivity() {
 
         setupViews()
         handleIntent(intent)
+        askForPermissionsOnce()
+        Downloads.resume(this)
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -57,18 +72,41 @@ class MainActivity : AppCompatActivity() {
         handleIntent(intent)
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Downloads may have been added from the share sheet while the app was in the background.
+        Downloads.resume(this)
+    }
+
+    private fun askForPermissionsOnce() {
+        if (Prefs.permissionsAsked(this)) return
+        val wanted = ArrayList<String>()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            wanted.add(Manifest.permission.POST_NOTIFICATIONS)
+        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+        ) {
+            wanted.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        }
+        Prefs.setPermissionsAsked(this)
+        if (wanted.isNotEmpty()) permissionLauncher.launch(wanted.toTypedArray())
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
     private fun setupViews() {
-        val rootLayout = android.widget.FrameLayout(this)
-        rootLayout.layoutParams = android.widget.FrameLayout.LayoutParams(
-            android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-            android.widget.FrameLayout.LayoutParams.MATCH_PARENT
+        val rootLayout = FrameLayout(this)
+        rootLayout.layoutParams = FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT,
         )
 
         webView = WebView(this).apply {
-            layoutParams = android.widget.FrameLayout.LayoutParams(
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT,
             )
             setLayerType(View.LAYER_TYPE_HARDWARE, null)
             isVerticalScrollBarEnabled = false
@@ -76,40 +114,39 @@ class MainActivity : AppCompatActivity() {
             settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = true
-                databaseEnabled = true
-                allowFileAccess = true
-                allowContentAccess = true
+                // The page comes from the app's own assets through the asset loader: no file access needed.
+                allowFileAccess = false
+                allowContentAccess = false
                 loadsImagesAutomatically = true
-                mediaPlaybackRequiresUserGesture = false
+                mediaPlaybackRequiresUserGesture = true
                 cacheMode = WebSettings.LOAD_DEFAULT
                 useWideViewPort = true
                 loadWithOverviewMode = true
             }
 
-            addJavascriptInterface(WebAppInterface(this@MainActivity), "AndroidBridge")
+            addJavascriptInterface(
+                WebAppInterface(this@MainActivity) { js -> runOnUiThread { evaluateJavascript(js, null) } },
+                "AndroidBridge",
+            )
 
             webViewClient = object : WebViewClient() {
-                override fun shouldInterceptRequest(
-                    view: WebView,
-                    request: WebResourceRequest
-                ): WebResourceResponse? {
-                    // 1. Try standard asset loader first
+                override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
                     val intercepted = assetLoader.shouldInterceptRequest(request.url)
                     if (intercepted != null) return intercepted
 
-                    // 2. Direct asset fallback for any /static/ or relative URLs
+                    // Fallback for absolute /static/... paths used by the shared web UI.
                     try {
                         val path = request.url.path ?: return null
                         val cleanPath = path.removePrefix("/assets/").removePrefix("/static/").removePrefix("/")
-                        val candidates = listOf("static/$cleanPath", cleanPath)
-                        for (candidate in candidates) {
+                        for (candidate in listOf("static/$cleanPath", cleanPath)) {
                             try {
                                 val stream = assets.open(candidate)
-                                val mime = getMimeType(candidate)
-                                return WebResourceResponse(mime, "UTF-8", stream)
-                            } catch (_: Exception) {}
+                                return WebResourceResponse(getMimeType(candidate), "UTF-8", stream)
+                            } catch (_: Exception) {
+                            }
                         }
-                    } catch (_: Exception) {}
+                    } catch (_: Exception) {
+                    }
                     return null
                 }
 
@@ -121,25 +158,19 @@ class MainActivity : AppCompatActivity() {
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
                     progressBar.visibility = View.GONE
-                    dispatchPendingUrl()
+                    // On a cold start the page asks for the shared text itself (getSharedUrl).
+                    pageLoaded = true
                 }
 
                 override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
-                    val targetUrl = request?.url?.toString() ?: return false
-                    if (targetUrl.startsWith("https://appassets.androidplatform.net/") ||
-                        targetUrl.startsWith("file:///android_asset/") ||
-                        targetUrl.startsWith("http://127.0.0.1") ||
-                        targetUrl.startsWith("http://localhost") ||
-                        targetUrl.startsWith("http://10.0.2.2")) {
-                        return false
-                    }
-                    // External links open in browser
+                    val target = request?.url?.toString() ?: return false
+                    if (target.startsWith("https://appassets.androidplatform.net/")) return false
+                    // Anything else (links inside the app) opens in the phone's browser.
                     return try {
-                        val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl))
-                        startActivity(browserIntent)
+                        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(target)))
                         true
                     } catch (_: Exception) {
-                        false
+                        true
                     }
                 }
             }
@@ -147,18 +178,13 @@ class MainActivity : AppCompatActivity() {
             webChromeClient = object : WebChromeClient() {
                 override fun onProgressChanged(view: WebView?, newProgress: Int) {
                     progressBar.progress = newProgress
-                    if (newProgress >= 100) {
-                        progressBar.visibility = View.GONE
-                    }
+                    if (newProgress >= 100) progressBar.visibility = View.GONE
                 }
             }
         }
 
         progressBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
-            layoutParams = android.widget.FrameLayout.LayoutParams(
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                8
-            )
+            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, 8)
             max = 100
             visibility = View.GONE
         }
@@ -167,33 +193,38 @@ class MainActivity : AppCompatActivity() {
         rootLayout.addView(progressBar)
         setContentView(rootLayout)
 
-        // Load the local app
         webView.loadUrl("https://appassets.androidplatform.net/assets/index.html")
     }
 
     private fun handleIntent(intent: Intent?) {
         if (intent == null) return
-        if (intent.action == Intent.ACTION_SEND && intent.type == "text/plain") {
-            val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT) ?: return
-            val extractedUrl = extractUrl(sharedText) ?: sharedText.trim()
-            pendingSharedUrl = extractedUrl
-            dispatchPendingUrl()
+        val shared = intent.getStringExtra(EXTRA_SHARED_TEXT)
+        if (!shared.isNullOrBlank()) {
+            pendingSharedText = shared
+            intent.removeExtra(EXTRA_SHARED_TEXT)
+            dispatchPendingText()
+            return
+        }
+        if (intent.action == Intent.ACTION_VIEW) {
+            val data = intent.data ?: return
+            val link = data.getQueryParameter("url") ?: return
+            if (UrlExtractor.isValid(link)) {
+                pendingSharedText = link
+                dispatchPendingText()
+            }
         }
     }
 
-    private fun extractUrl(text: String): String? {
-        val pattern = Pattern.compile("https?://[^\\s]+")
-        val matcher = pattern.matcher(text)
-        return if (matcher.find()) matcher.group(0) else null
-    }
-
-    private fun dispatchPendingUrl() {
-        val url = pendingSharedUrl ?: return
-        val jsSafeUrl = url.replace("'", "\\'").replace("\"", "\\\"")
+    /** Warm start: the page is already running, so hand the text over right away. */
+    private fun dispatchPendingText() {
+        if (!pageLoaded || !::webView.isInitialized) return
+        val text = pendingSharedText ?: return
+        pendingSharedText = null
+        val literal = org.json.JSONObject.quote(text)
         webView.post {
             webView.evaluateJavascript(
-                "if (window.handleSharedUrl) { window.handleSharedUrl('$jsSafeUrl'); } else { document.addEventListener('DOMContentLoaded', () => { if (window.handleSharedUrl) window.handleSharedUrl('$jsSafeUrl'); }); }",
-                null
+                "if (window.handleSharedUrl) { window.handleSharedUrl($literal); }",
+                null,
             )
         }
     }
@@ -218,5 +249,9 @@ class MainActivity : AppCompatActivity() {
                 (if (ext != null) MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext.lowercase()) else null) ?: "*/*"
             }
         }
+    }
+
+    companion object {
+        const val EXTRA_SHARED_TEXT = "com.digitaldownloader.app.SHARED_TEXT"
     }
 }

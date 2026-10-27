@@ -282,6 +282,8 @@ export function downloadAnother() {
 }
 
 export async function resumeIfRunning() {
+  // On the phone the download list already shows everything that is running.
+  if (window.AndroidBridge) return;
   try {
     const jobs = await api.listJobs();
     const active = jobs.find((j) => !TERMINAL.has(j.status));

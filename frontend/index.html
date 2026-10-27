@@ -368,6 +368,20 @@
         <p class="field-hint" id="settings-save-message" role="status" aria-live="polite"></p>
       </div>
 
+      <div class="field setting-field" id="android-share-settings" hidden>
+        <label for="share-mode-select">When you share a link to this app</label>
+        <select id="share-mode-select">
+          <option value="background">Download in the background (recommended)</option>
+          <option value="open">Open the app so I can choose the quality</option>
+        </select>
+        <label for="share-quality-select" style="margin-top: 0.6rem;">Background downloads save as</label>
+        <select id="share-quality-select">
+          <option value="best">Video (best quality that plays everywhere)</option>
+          <option value="audio">Audio only</option>
+        </select>
+        <p class="field-hint" id="share-settings-message" role="status" aria-live="polite"></p>
+      </div>
+
       <div class="field setting-field">
         <label for="theme-select">Theme appearance</label>
         <select id="theme-select">

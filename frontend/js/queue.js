@@ -119,7 +119,19 @@ function updateRow({ li, refs }, job) {
   refs.dismiss.hidden = active;
 }
 
+const announced = new Set();
+let firstRender = true;
+
 export function renderQueue(jobs) {
+  // Tell the rest of the page when a download finished (so "recent downloads" refreshes),
+  // but not for downloads that were already finished when the page opened.
+  for (const job of jobs) {
+    if (job.status === "completed" && !announced.has(job.job_id)) {
+      announced.add(job.job_id);
+      if (!firstRender) document.dispatchEvent(new CustomEvent("pm:job-completed"));
+    }
+  }
+  firstRender = false;
   const visible = jobs.filter((job) => !dismissed.has(job.job_id));
   els.queueSection.hidden = visible.length === 0;
   const seen = new Set();
@@ -185,6 +197,13 @@ export function clearFinished() {
 export function initQueue() {
   if (!els.queueSection || !els.queueList) return;
   els.queueClear?.addEventListener("click", clearFinished);
+  // Coming back to the app (for example after sharing links to it) shows new downloads straight away.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      idleChecks = 0;
+      kickQueue();
+    }
+  });
   document.addEventListener("pm:job-created", () => {
     idleChecks = 0;
     kickQueue();

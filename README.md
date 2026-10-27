@@ -5,9 +5,10 @@ A fast, privacy-first media downloader for YouTube, TikTok, Instagram, Twitter/X
 > **One product. One core. Multiple platform adapters.**  
 > Desktop (**Windows**, **Linux**) ships with bundled yt-dlp and FFmpeg: no Python or FFmpeg install needed.
 
-> **Android status (honest note):** the Android app currently receives shared links and downloads
-> through public web services, so quality is limited and availability depends on those services.
-> A fully on-device engine (yt-dlp + FFmpeg inside the app, background queue) is the next milestone.
+> **Android:** the app now carries its own download engine (yt-dlp + FFmpeg run on the phone, no
+> server or web service needed). Share a link from any app and it downloads in the background with a
+> notification; up to 3 downloads run at once and the queue survives restarts. Files are saved to
+> `Downloads/DigitalDownloader`. This is a first on-device release: report anything that fails on your phone.
 > See [`docs/roadmap.md`](docs/roadmap.md).
 
 ---
@@ -16,7 +17,7 @@ A fast, privacy-first media downloader for YouTube, TikTok, Instagram, Twitter/X
 - **Zero Configuration on Desktop:** Works out of the box with bundled multimedia runtimes.
 - **Universal Extraction:** Works with a very wide range of sites; support depends on yt-dlp and changes as sites change.
 - **Quality & Format Selection:** Choose the highest available quality down to the smallest, or extract audio (MP3/M4A/Opus).
-- **Android Share Target:** Share a link from any app to Digital Downloader (on-device engine in progress).
+- **Android Share Target:** Share a link from any app and it downloads in the background (on-device yt-dlp + FFmpeg engine, notifications, queue).
 - **History & Management:** Persistent download history with instant "Open file" and "Folder" actions.
 - **Security Hardened:** Safe argument-list subprocess execution (`shell=False`), loopback binding guardrails (`127.0.0.1`), and path traversal sanitization.
 - **Decoupled Architecture:** Clean `core/` domain engine powering platform adapters for Windows, Android, and Linux.
@@ -28,7 +29,7 @@ A fast, privacy-first media downloader for YouTube, TikTok, Instagram, Twitter/X
 | Platform | Format | Integration | Dependency |
 |---|---|---|---|
 | **Windows** | `.exe` / `.zip` | Bundled `yt-dlp` + `ffmpeg` | None (Fully Standalone) |
-| **Android** | `.apk` | Share Target; web-service extraction (on-device engine in progress) | Internet |
+| **Android** | `.apk` | Share-to-background download, on-device engine, queue | Internet |
 | **Linux** | Standalone binary | Bundled runtime + local storage | None (Fully Standalone) |
 
 ---
@@ -126,7 +127,7 @@ Finished files are saved to your chosen output folder. You can configure this di
 - Short paths like `downloads\Music` or `downloads/Videos` (auto-expanded to your user profile directory).
 - Home shortcuts like `~/Downloads` or full absolute paths (e.g. `D:\Media`).
 - Default: `~/Downloads/PersonalMedia`.
-- Mobile (Android): Saved directly to the device's native `Downloads` directory via Android DownloadManager.
+- Mobile (Android): saved to `Downloads/DigitalDownloader` through the system media store (no storage permission needed on Android 10+).
 
 Work in progress lives in `data/temp/job-<id>/` and is deleted when a job ends, however it ends. Leftovers from a crash are removed at the next start. A file with an existing name is never overwritten (`Name (1).mp4`).
 

@@ -908,3 +908,113 @@ dialog::backdrop {
   border-top: 1px solid var(--line);
   margin-top: auto;
 }
+
+/* ------------------------------------------------------------------ Download queue */
+.queue {
+  margin-top: 2.5rem;
+}
+
+.queue-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.queue-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1.1rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow-sm);
+}
+
+.queue-item[data-state="failed"] {
+  border-color: var(--bad);
+}
+
+.queue-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.queue-title {
+  margin: 0;
+  font-size: 0.925rem;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-status {
+  margin: 0.2rem 0 0.45rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.queue-item[data-state="failed"] .queue-status {
+  color: var(--bad);
+}
+
+.queue-item[data-state="completed"] .queue-status {
+  color: var(--ok);
+}
+
+.queue-bar {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle);
+  overflow: hidden;
+}
+
+.queue-bar[hidden] {
+  display: none;
+}
+
+.queue-bar-fill {
+  height: 100%;
+  width: var(--progress, 0%);
+  background: var(--accent);
+  border-radius: var(--radius-pill);
+  transition: width 300ms ease;
+}
+
+.queue-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.queue-actions .button[hidden] {
+  display: none;
+}
+
+.batch-mode {
+  max-width: 9.5rem;
+}
+
+.extractor-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.4rem;
+}
+
+@media (max-width: 560px) {
+  .queue-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .queue-actions {
+    justify-content: flex-end;
+  }
+}

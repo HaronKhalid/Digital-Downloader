@@ -15,6 +15,10 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 /** Wraps the on-device yt-dlp + FFmpeg engine. Everything here may block: never call it on the UI thread. */
+/** Like optString, but a JSON null counts as missing (Android's optString would return the text "null"). */
+private fun JSONObject.text(key: String, fallback: String): String =
+    if (isNull(key)) fallback else optString(key, fallback)
+
 object Engine {
     @Volatile
     private var ready = false
@@ -94,7 +98,7 @@ object Engine {
         } catch (e: Exception) {
             throw AppException("MEDIA_NOT_AVAILABLE", "Couldn't read any media from this link.")
         }
-        if (info.optString("_type") == "playlist") {
+        if (info.text("_type", "") == "playlist") {
             throw AppException("PLAYLIST_NOT_SUPPORTED", "This link is a playlist. Playlists are coming in a later update; open a single video link for now.")
         }
         return describe(url, info)
@@ -107,8 +111,8 @@ object Engine {
         var anyVideo = false
         for (i in 0 until formats.length()) {
             val f = formats.optJSONObject(i) ?: continue
-            val vcodec = f.optString("vcodec", "none")
-            val acodec = f.optString("acodec", "none")
+            val vcodec = f.text("vcodec", "none")
+            val acodec = f.text("acodec", "none")
             val size = maxOf(f.optLong("filesize", 0L), f.optLong("filesize_approx", 0L))
             val height = f.optInt("height", 0)
             if (vcodec != "none" && vcodec.isNotEmpty() && height > 0) {
@@ -120,7 +124,7 @@ object Engine {
         }
         val hasAudioStream = (0 until formats.length()).any {
             val f = formats.optJSONObject(it)
-            f != null && f.optString("acodec", "none") != "none"
+            f != null && f.text("acodec", "none") != "none"
         }
 
         val list = JSONArray()
@@ -135,7 +139,7 @@ object Engine {
             )
         }
         if (!anyVideo && (info.has("url") || formats.length() > 0)) {
-            val ext = info.optString("ext", "mp4").ifEmpty { "mp4" }
+            val ext = info.text("ext", "mp4").ifEmpty { "mp4" }
             val size = maxOf(info.optLong("filesize", 0L), info.optLong("filesize_approx", 0L))
             list.put(
                 formatEntry(
@@ -158,12 +162,12 @@ object Engine {
 
         val out = JSONObject()
         out.put("source", "ytdlp")
-        out.put("source_label", info.optString("extractor_key", "Web media").ifEmpty { "Web media" })
+        out.put("source_label", info.text("extractor_key", "Web media").ifEmpty { "Web media" })
         out.put("url", url)
-        out.put("title", info.optString("title", "").ifEmpty { Download.sourceLabel(url) })
+        out.put("title", info.text("title", "").ifEmpty { Download.sourceLabel(url) })
         val duration = info.optDouble("duration", Double.NaN)
         out.put("duration", if (duration.isNaN()) JSONObject.NULL else duration.toLong())
-        val thumb = info.optString("thumbnail", "")
+        val thumb = info.text("thumbnail", "")
         out.put("thumbnail", if (thumb.startsWith("https://")) thumb else JSONObject.NULL)
         out.put("formats", list)
         return out

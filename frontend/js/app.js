@@ -1,4 +1,4 @@
-import { api, ApiError, getBackendBaseUrl, setBackendBaseUrl } from "./api.js";
+import { api, ApiError, isAndroidApp } from "./api.js";
 import { initJobs, resumeIfRunning, hidePanel } from "./jobs.js";
 import { hideMedia, renderMedia } from "./media.js";
 import { initQueue, kickQueue } from "./queue.js";
@@ -167,19 +167,11 @@ async function refreshDependencies() {
   try {
     const deps = await api.dependencies();
     renderDependencies(deps);
-    if (window.AndroidBridge) {
-      setStatus("ok", "Ready");
-      return;
-    }
     if (!deps.ffmpeg.ok) setStatus("warn", "FFmpeg not found");
     else if (!deps.extractor.ok) setStatus("warn", "Media extractor not installed");
     else setStatus("ok", `Ready · FFmpeg ${deps.ffmpeg.version.split("-")[0]}`);
   } catch (error) {
-    if (window.AndroidBridge) {
-      setStatus("ok", "Ready");
-    } else {
-      setStatus("error", "Backend offline");
-    }
+    setStatus("error", isAndroidApp() ? "Download engine unavailable" : "Backend offline");
   }
 }
 
@@ -239,12 +231,41 @@ async function loadSettings() {
     }
     setSettingsMessage("", "");
     setDomainsMessage("", "");
+    if (isAndroidApp()) setupAndroidSettings(data);
 
     const cookies = await api.getCookies();
     renderCookiesStatus(cookies);
   } catch {
     setSettingsMessage("error", "Could not load settings.");
   }
+}
+
+let androidSettingsReady = false;
+
+function setupAndroidSettings(data) {
+  // On the phone, files always go to Downloads/DigitalDownloader: show it, but don't let it be edited.
+  if (els.outputDirectory) els.outputDirectory.readOnly = true;
+  document.getElementById("save-settings-button")?.setAttribute("hidden", "");
+  const box = document.getElementById("android-share-settings");
+  const mode = document.getElementById("share-mode-select");
+  const quality = document.getElementById("share-quality-select");
+  const message = document.getElementById("share-settings-message");
+  if (!box || !mode || !quality) return;
+  box.hidden = false;
+  mode.value = data.share_mode || "background";
+  quality.value = data.share_quality || "best";
+  if (androidSettingsReady) return;
+  androidSettingsReady = true;
+  const save = async () => {
+    try {
+      await api.updateSettings({ share_mode: mode.value, share_quality: quality.value });
+      if (message) message.textContent = "Saved.";
+    } catch (err) {
+      if (message) message.textContent = err instanceof ApiError ? err.message : "Could not save.";
+    }
+  };
+  mode.addEventListener("change", save);
+  quality.addEventListener("change", save);
 }
 
 async function saveSettings(e) {
@@ -355,11 +376,6 @@ async function installExtractorUpdate() {
 
 function initExtractorUpdate() {
   if (!els.extractorCheck || !els.extractorUpdate) return;
-  if (window.AndroidBridge) {
-    // The Android app has no local yt-dlp to update (yet).
-    els.extractorCheck.closest(".extractor-field")?.setAttribute("hidden", "");
-    return;
-  }
   els.extractorCheck.addEventListener("click", checkExtractor);
   els.extractorUpdate.addEventListener("click", installExtractorUpdate);
 }
@@ -560,32 +576,6 @@ async function start() {
   document.addEventListener("pm:job-completed", () => {
     loadHistory();
   });
-
-  const backendUrlInput = document.getElementById("backend-url-input");
-  const saveBackendUrlBtn = document.getElementById("save-backend-url-button");
-  const backendUrlMsg = document.getElementById("backend-url-message");
-
-  if (backendUrlInput) {
-    backendUrlInput.value = getBackendBaseUrl();
-  }
-  if (saveBackendUrlBtn && backendUrlInput) {
-    saveBackendUrlBtn.addEventListener("click", () => {
-      setBackendBaseUrl(backendUrlInput.value);
-      if (backendUrlMsg) {
-        backendUrlMsg.textContent = "Backend URL saved. Testing connection…";
-      }
-      api.health()
-        .then(() => {
-          if (backendUrlMsg) backendUrlMsg.textContent = "Connected successfully!";
-          setStatus("ok", "Connected");
-          showNotice("success", "Connected to Digital Downloader server.");
-        })
-        .catch(() => {
-          if (backendUrlMsg) backendUrlMsg.textContent = "Could not reach server. Verify address and try again.";
-          setStatus("error", "Cannot reach server");
-        });
-    });
-  }
 
   // Handle shared URLs from Android Share Intent or external shortcuts
   window.handleSharedUrl = (sharedUrl) => {

@@ -17,10 +17,21 @@ Encode and add four repository secrets (GitHub > Settings > Secrets and variable
 
 | Secret | Value |
 |---|---|
-| `ANDROID_KEYSTORE_BASE64` | [Convert]::ToBase64String([IO.File]::ReadAllBytes("$HOME\Documents\digitaldownloader-release.jks")) | Set-Clipboard |
-| `ANDROID_KEYSTORE_PASSWORD` | Digit@1d0wnloader |
+| `ANDROID_KEYSTORE_BASE64` | the key file converted to text (see the command below) |
+| `ANDROID_KEYSTORE_PASSWORD` | the keystore password you chose |
 | `ANDROID_KEY_ALIAS` | `digitaldownloader` |
-| `ANDROID_KEY_PASSWORD` | Digit@1d0wnloader |
+| `ANDROID_KEY_PASSWORD` | the key password (the same one if you were asked only once) |
+
+Command that copies the key file as text to your clipboard (Windows PowerShell):
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("$HOME\Documents\digitaldownloader-release.jks")) | Set-Clipboard
+```
+
+> **Never write real passwords or key text in this file or anywhere in the repository.**
+> The repository is public and git history is permanent. Real values belong only on
+> GitHub's Secrets page. If a password is ever committed by mistake, create a new key
+> and replace the secrets.
 
 Never commit the `.jks` file (it is ignored by `.gitignore`).
 

@@ -105,9 +105,9 @@ def launch_native_desktop_window(port: int) -> None:
         os.path.expandvars(r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"),
     ]
     for exe in candidates:
-        if os.path.isfile(exe):
             try:
-                proc = subprocess.Popen([exe, f"--app={url}", "--new-window"])
+                cf = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+                proc = subprocess.Popen([exe, f"--app={url}", "--new-window"], creationflags=cf)
                 proc.wait()
                 return
             except Exception:

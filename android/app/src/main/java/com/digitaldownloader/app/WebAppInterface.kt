@@ -60,6 +60,21 @@ class WebAppInterface(private val activity: MainActivity) {
     }
 
     @JavascriptInterface
+    fun getClipboardText(): String {
+        return try {
+            val clipboard = activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val clip = clipboard.primaryClip
+            if (clip != null && clip.itemCount > 0) {
+                clip.getItemAt(0).coerceToText(activity)?.toString()?.trim() ?: ""
+            } else {
+                ""
+            }
+        } catch (_: Exception) {
+            ""
+        }
+    }
+
+    @JavascriptInterface
     fun vibrate() {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {

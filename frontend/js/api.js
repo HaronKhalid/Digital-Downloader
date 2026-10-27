@@ -427,8 +427,10 @@ function standaloneCreateJob(payload) {
 
   const jobId = `mob_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
   const job = {
+    job_id: jobId,
     id: jobId,
     url: payload.url,
+    status: "completed",
     state: "completed",
     percent: 100,
     filename: filename,
@@ -445,6 +447,7 @@ function standaloneCreateJob(payload) {
       title: filename.replace(/\.[^.]+$/, ""),
       target_path: job.target_path,
       filename: filename,
+      status: "completed",
       state: "completed",
       completed_at: job.completed_at,
     });
@@ -533,7 +536,9 @@ export const api = {
   getJob: async (id) => {
     if (String(id).startsWith("mob_")) {
       return {
+        job_id: id,
         id,
+        status: "completed",
         state: "completed",
         percent: 100,
         filename: "Download started in notification bar",
@@ -566,13 +571,13 @@ export const api = {
 
   history: async (limit = 50) => {
     if (isAndroidApp() && !getBackendBaseUrl()) {
-      return standaloneGetHistory().slice(0, limit);
+      return { items: standaloneGetHistory().slice(0, limit) };
     }
     try {
       return await request("GET", `/api/history?limit=${encodeURIComponent(limit)}`);
     } catch (err) {
       if (isAndroidApp()) {
-        return standaloneGetHistory().slice(0, limit);
+        return { items: standaloneGetHistory().slice(0, limit) };
       }
       throw err;
     }

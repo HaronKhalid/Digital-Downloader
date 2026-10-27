@@ -42,14 +42,16 @@ def detect_ffmpeg(timeout: float = 5.0) -> FFmpegStatus:
     if not executable:
         return FFmpegStatus(False, message=INSTALL_HINT)
     try:
-        result = subprocess.run(
-            [executable, "-version"],
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            env=controlled_env(executable),
-            check=False,
-        )
+        kwargs: dict = {
+            "capture_output": True,
+            "text": True,
+            "timeout": timeout,
+            "env": controlled_env(executable),
+            "check": False,
+        }
+        if sys.platform == "win32":
+            kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+        result = subprocess.run([executable, "-version"], **kwargs)
     except (OSError, subprocess.SubprocessError):
         return FFmpegStatus(False, message="FFmpeg was found but could not be started.")
     match = _VERSION.search(result.stdout or "")

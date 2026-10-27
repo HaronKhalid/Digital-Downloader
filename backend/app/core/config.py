@@ -12,8 +12,13 @@ from typing import Mapping
 
 if getattr(sys, "frozen", False):
     REPO_ROOT = Path(sys._MEIPASS)
+    if sys.platform == "win32":
+        USER_DATA_DIR = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / "DigitalDownloader" / "data"
+    else:
+        USER_DATA_DIR = Path.home() / ".digitaldownloader" / "data"
 else:
     REPO_ROOT = Path(__file__).resolve().parents[3]
+    USER_DATA_DIR = REPO_ROOT / "data"
 
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 _DOMAIN = re.compile(r"^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$")
@@ -80,7 +85,7 @@ class Settings:
             if domain != "*" and domain != "all" and not _DOMAIN.match(domain):
                 raise ConfigError(f"ALLOWED_SOURCE_DOMAINS contains an invalid domain: {domain!r}")
 
-        data = REPO_ROOT / "data"
+        data = Path(env.get("DATA_DIRECTORY") or USER_DATA_DIR)
         return cls(
             app_env=env.get("APP_ENV", "development").strip().lower(),
             host=host,

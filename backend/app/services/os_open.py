@@ -18,9 +18,9 @@ def open_in_os(path: Path, *, select: bool = False) -> None:
     if sys.platform == "win32":
         if select:
             folder = target_path if target_path.is_dir() else target_path.parent
-            norm_folder = os.path.normpath(str(folder))
             try:
-                subprocess.Popen(["explorer.exe", norm_folder])
+                cf = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+                subprocess.Popen(["explorer.exe", norm_folder], creationflags=cf)
             except Exception:
                 os.startfile(norm_folder)
         else:

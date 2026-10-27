@@ -24,6 +24,12 @@ Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=lowest
+VersionInfoVersion=2.0.0.0
+VersionInfoCompany=Digital Takhleeq
+VersionInfoDescription=Digital Downloader Standalone App
+VersionInfoCopyright=Copyright (C) 2026 Digital Takhleeq
+VersionInfoProductName=Digital Downloader
+VersionInfoProductVersion=2.0.0.0
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

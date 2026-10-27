@@ -97,7 +97,10 @@ def detect_ytdlp() -> tuple[bool, str | None, str | None]:
     bin_path = find_ytdlp_binary()
     if bin_path is not None:
         try:
-            res = subprocess.run([str(bin_path), "--version"], capture_output=True, text=True, timeout=5.0, check=False)
+            kwargs: dict = {"capture_output": True, "text": True, "timeout": 5.0, "check": False}
+            if sys.platform == "win32":
+                kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+            res = subprocess.run([str(bin_path), "--version"], **kwargs)
             v = (res.stdout or "").strip()
             if v:
                 return True, v, None
@@ -117,9 +120,10 @@ def default_runner(args: list[str], timeout: float) -> tuple[int, bytes, bytes]:
     env = controlled_env()
     env.update({"PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1"})
     try:
-        done = subprocess.run(
-            args, capture_output=True, timeout=timeout, env=env, stdin=subprocess.DEVNULL, check=False
-        )
+        kwargs: dict = {"capture_output": True, "timeout": timeout, "env": env, "stdin": subprocess.DEVNULL, "check": False}
+        if sys.platform == "win32":
+            kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+        done = subprocess.run(args, **kwargs)
     except subprocess.TimeoutExpired:
         raise AppError(ErrorCode.TIMEOUT, "The website took too long to respond.", reason="ytdlp_timeout") from None
     except OSError:

@@ -47,7 +47,13 @@ def terminate_tree(proc: subprocess.Popen, grace: float = 3.0) -> None:
     """Terminate ``proc`` and every process it started. Safe to call repeatedly."""
     if os.name == "nt":
         if proc.poll() is None:
-            subprocess.run(windows_kill_args(proc.pid), capture_output=True, check=False, timeout=15)
+            subprocess.run(
+                windows_kill_args(proc.pid),
+                capture_output=True,
+                check=False,
+                timeout=15,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+            )
     else:
         try:
             pgid = os.getpgid(proc.pid)

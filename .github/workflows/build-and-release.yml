@@ -159,14 +159,27 @@ jobs:
           # Also try assembleRelease (generates unsigned release apk)
           ./gradlew assembleRelease --stacktrace || true
 
-      - name: Copy & Rename APKs
+      - name: Sign & Package Android APK
         run: |
           mkdir -p release-apks
-          if [ -f "android/app/build/outputs/apk/release/app-release.apk" ]; then
-            cp android/app/build/outputs/apk/release/app-release.apk release-apks/DigitalDownloader.apk
-          elif [ -f "android/app/build/outputs/apk/release/app-release-unsigned.apk" ]; then
-            cp android/app/build/outputs/apk/release/app-release-unsigned.apk release-apks/DigitalDownloader.apk
+          keytool -genkey -v -keystore release.keystore -alias digitaldownloader -keyalg RSA -keysize 2048 -validity 10000 -storepass digitaldownloader123 -keypass digitaldownloader123 -dname "CN=Digital Downloader, OU=Digital Takhleeq, O=Digital Takhleeq, L=San Francisco, ST=CA, C=US"
+          
+          APKSIGNER=$(find $ANDROID_HOME/build-tools -name apksigner | sort -V | tail -n 1)
+          echo "Found apksigner at: $APKSIGNER"
+          
+          SRC_APK=""
+          if [ -f "android/app/build/outputs/apk/release/app-release-unsigned.apk" ]; then
+            SRC_APK="android/app/build/outputs/apk/release/app-release-unsigned.apk"
+          elif [ -f "android/app/build/outputs/apk/release/app-release.apk" ]; then
+            SRC_APK="android/app/build/outputs/apk/release/app-release.apk"
+          else
+            SRC_APK="android/app/build/outputs/apk/debug/app-debug.apk"
           fi
+          echo "Signing source APK: $SRC_APK"
+          
+          $APKSIGNER sign --ks release.keystore --ks-pass pass:digitaldownloader123 --key-pass pass:digitaldownloader123 --out release-apks/DigitalDownloader.apk "$SRC_APK"
+          $APKSIGNER verify --verbose release-apks/DigitalDownloader.apk
+
           if [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
             cp android/app/build/outputs/apk/debug/app-debug.apk release-apks/DigitalDownloader-debug.apk
           fi

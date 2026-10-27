@@ -63,15 +63,26 @@ async function analyze(event) {
 }
 
 async function pasteFromClipboard() {
-  try {
-    const text = (await navigator.clipboard.readText()).trim();
+  let text = "";
+  if (window.AndroidBridge && typeof window.AndroidBridge.getClipboardText === "function") {
+    try {
+      text = (window.AndroidBridge.getClipboardText() || "").trim();
+    } catch (_) {}
+  }
+  if (!text && navigator.clipboard && typeof navigator.clipboard.readText === "function") {
+    try {
+      text = (await navigator.clipboard.readText()).trim();
+    } catch (_) {}
+  }
+  if (text) {
+    text = text.replace(/[\\/\s]+$/, "").trim();
     els.input.value = text;
     hideMedia();
     syncClearButton();
     els.input.focus();
-    showNotice("info", text ? "Press Analyze to check this link." : "The clipboard is empty.");
-  } catch {
-    showNotice("error", "The browser blocked clipboard access. Paste with Ctrl+V instead.");
+    showNotice("info", "Link pasted. Press Analyze to inspect.");
+  } else {
+    showNotice("info", "Clipboard is empty or access was not granted.");
     els.input.focus();
   }
 }
@@ -107,7 +118,8 @@ async function refreshDependencies() {
 async function loadHistory() {
   try {
     const res = await api.history(50);
-    renderHistory(res.items, {
+    const items = Array.isArray(res) ? res : (res?.items || []);
+    renderHistory(items, {
       onOpen: async (id) => {
         try {
           await api.openHistory(id, "file");
@@ -206,6 +218,26 @@ async function saveDomains(e) {
   }
 }
 
+function openMenu() {
+  if (!els.menuDrawer) return;
+  els.menuDrawer.hidden = false;
+  if (els.menuBackdrop) els.menuBackdrop.hidden = false;
+  requestAnimationFrame(() => {
+    els.menuDrawer.classList.add("open");
+    if (els.menuBackdrop) els.menuBackdrop.classList.add("open");
+  });
+}
+
+function closeMenu() {
+  if (!els.menuDrawer) return;
+  els.menuDrawer.classList.remove("open");
+  if (els.menuBackdrop) els.menuBackdrop.classList.remove("open");
+  setTimeout(() => {
+    els.menuDrawer.hidden = true;
+    if (els.menuBackdrop) els.menuBackdrop.hidden = true;
+  }, 260);
+}
+
 async function start() {
   initTheme();
 
@@ -217,6 +249,25 @@ async function start() {
     syncClearButton();
   });
 
+  if (els.menuToggle) {
+    els.menuToggle.addEventListener("click", openMenu);
+  }
+  if (els.menuClose) {
+    els.menuClose.addEventListener("click", closeMenu);
+  }
+  if (els.menuBackdrop) {
+    els.menuBackdrop.addEventListener("click", closeMenu);
+  }
+  if (els.menuHistoryLink) {
+    els.menuHistoryLink.addEventListener("click", () => {
+      closeMenu();
+      const historySec = document.getElementById("history-section") || els.historyList;
+      if (historySec) {
+        historySec.scrollIntoView({ behavior: "smooth" });
+      }
+    });
+  }
+
   if (els.themeToggle) {
     els.themeToggle.addEventListener("click", toggleTheme);
   }
@@ -224,13 +275,16 @@ async function start() {
     els.themeSelect.addEventListener("change", (e) => applyTheme(e.target.value));
   }
 
-  els.openSettings.addEventListener("click", () => {
-    els.settings.showModal();
-    refreshDependencies();
-    loadSettings();
-  });
+  if (els.openSettings) {
+    els.openSettings.addEventListener("click", () => {
+      closeMenu();
+      els.settings.showModal();
+      refreshDependencies();
+      loadSettings();
+    });
+  }
   els.settings.addEventListener("close", () => {
-    els.openSettings.focus();
+    if (els.menuToggle) els.menuToggle.focus();
   });
 
   els.refreshDependencies.addEventListener("click", refreshDependencies);

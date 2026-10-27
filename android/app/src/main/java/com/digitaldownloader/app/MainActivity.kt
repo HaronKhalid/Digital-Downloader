@@ -70,6 +70,9 @@ class MainActivity : AppCompatActivity() {
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT
             )
+            setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            isVerticalScrollBarEnabled = false
+            isHorizontalScrollBarEnabled = false
             settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = true

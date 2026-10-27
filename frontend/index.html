@@ -21,40 +21,125 @@
 
   <!-- Header / Navigation Bar -->
   <header class="topbar">
-    <div class="brand">
-      <img src="/static/img/logo-dark.png" class="brand-logo logo-dark" alt="Digital Downloader" width="28" height="28">
-      <img src="/static/img/logo-light.png" class="brand-logo logo-light" alt="Digital Downloader" width="28" height="28">
-      <span class="brand-name">Digital Downloader</span>
+    <div class="brand-group">
+      <button type="button" class="icon-button menu-toggle" id="menu-toggle" aria-label="Open menu" title="Menu">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
+      <div class="brand">
+        <img src="/static/img/logo-dark.png" class="brand-logo logo-dark" alt="Digital Downloader" width="28" height="28">
+        <img src="/static/img/logo-light.png" class="brand-logo logo-light" alt="Digital Downloader" width="28" height="28">
+        <span class="brand-name">Digital Downloader</span>
+      </div>
     </div>
     <div class="topbar-actions">
       <p class="status" id="status" data-state="checking" role="status">
         <span class="status-dot" aria-hidden="true"></span>
         <span id="status-text">Checking backend</span>
       </p>
-      <button type="button" class="icon-button" id="theme-toggle" aria-label="Toggle theme" title="Toggle theme">
-        <svg id="theme-icon-sun" class="theme-icon" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="5"></circle>
-          <line x1="12" y1="1" x2="12" y2="3"></line>
-          <line x1="12" y1="21" x2="12" y2="23"></line>
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-          <line x1="1" y1="12" x2="3" y2="12"></line>
-          <line x1="21" y1="12" x2="23" y2="12"></line>
-          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-        </svg>
-        <svg id="theme-icon-moon" class="theme-icon" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden>
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-        </svg>
-      </button>
-      <button type="button" class="icon-button" id="open-settings" aria-label="Open settings" title="Settings">
-        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="3"></circle>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+    </div>
+  </header>
+
+  <!-- App Menu Drawer Backdrop & Aside -->
+  <div class="menu-backdrop" id="menu-backdrop" hidden></div>
+  <aside class="menu-drawer" id="menu-drawer" aria-label="Application Menu" hidden>
+    <div class="menu-drawer-header">
+      <div class="menu-drawer-title">
+        <img src="/static/img/icon.png" class="menu-logo" alt="" width="22" height="22">
+        <span>Digital Downloader</span>
+      </div>
+      <button type="button" class="icon-button" id="menu-close" aria-label="Close menu" title="Close menu">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
       </button>
     </div>
-  </header>
+
+    <div class="menu-drawer-body">
+      <!-- Section: Appearance -->
+      <div class="menu-group">
+        <div class="menu-group-label">Appearance</div>
+        <button type="button" class="menu-item" id="theme-toggle">
+          <div class="menu-item-left">
+            <svg id="theme-icon-sun" class="theme-icon menu-item-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+            <svg id="theme-icon-moon" class="theme-icon menu-item-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden>
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+            <div class="menu-item-info">
+              <span class="menu-item-title">Color Theme</span>
+              <span class="menu-item-subtitle" id="theme-mode-text">Dark Mode</span>
+            </div>
+          </div>
+          <span class="menu-badge" id="theme-toggle-btn-label">Switch</span>
+        </button>
+      </div>
+
+      <!-- Section: Navigation & Tools -->
+      <div class="menu-group">
+        <div class="menu-group-label">Features</div>
+        <button type="button" class="menu-item" id="menu-history-link">
+          <div class="menu-item-left">
+            <svg class="menu-item-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <div class="menu-item-info">
+              <span class="menu-item-title">Download History</span>
+              <span class="menu-item-subtitle">View and open your downloads</span>
+            </div>
+          </div>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+
+        <button type="button" class="menu-item" id="open-settings">
+          <div class="menu-item-left">
+            <svg class="menu-item-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+            <div class="menu-item-info">
+              <span class="menu-item-title">Settings</span>
+              <span class="menu-item-subtitle">Download folder & preferences</span>
+            </div>
+          </div>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </div>
+
+      <!-- Section: System & FFmpeg Message -->
+      <div class="menu-group">
+        <div class="menu-group-label">Engines & Status</div>
+        <div class="menu-status-card">
+          <div class="menu-status-row">
+            <span class="status-indicator-dot ok"></span>
+            <span class="menu-status-title" id="menu-engine-status-text">Ready to Download</span>
+          </div>
+          <div class="menu-status-detail" id="menu-ffmpeg-status">FFmpeg: Bundled & Active</div>
+          <div class="menu-status-detail" id="menu-extractor-status">Extractor: Standalone Engine</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="menu-drawer-footer">
+      <span>v2.0.0</span>
+      <span class="dot-sep">•</span>
+      <span>Digital Takhleeq</span>
+    </div>
+  </aside>
 
   <main class="page">
     <div class="app-layout">

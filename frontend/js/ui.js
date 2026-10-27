@@ -16,6 +16,15 @@ export const els = {
   themeToggle: $("theme-toggle"),
   themeIconSun: $("theme-icon-sun"),
   themeIconMoon: $("theme-icon-moon"),
+  themeModeText: $("theme-mode-text"),
+  menuToggle: $("menu-toggle"),
+  menuDrawer: $("menu-drawer"),
+  menuBackdrop: $("menu-backdrop"),
+  menuClose: $("menu-close"),
+  menuHistoryLink: $("menu-history-link"),
+  menuEngineStatus: $("menu-engine-status-text"),
+  menuFfmpegStatus: $("menu-ffmpeg-status"),
+  menuExtractorStatus: $("menu-extractor-status"),
   openSettings: $("open-settings"),
   settings: $("settings-dialog"),
   themeSelect: $("theme-select"),
@@ -133,6 +142,9 @@ export function applyTheme(theme) {
     els.themeIconSun.hidden = !activeDark;
     els.themeIconMoon.hidden = activeDark;
   }
+  if (els.themeModeText) {
+    els.themeModeText.textContent = activeDark ? "Dark Mode" : "Light Mode";
+  }
 }
 
 export function initTheme() {
@@ -178,16 +190,31 @@ function dependencyItem(name, ok, detail) {
 }
 
 export function renderDependencies(deps) {
-  els.dependencyList.replaceChildren(
-    dependencyItem("Backend", deps.backend.ok, `Version ${deps.backend.version}`),
-    dependencyItem("Python", deps.python.ok, `Version ${deps.python.version}`),
-    dependencyItem("FFmpeg", deps.ffmpeg.ok, deps.ffmpeg.ok ? `Version ${deps.ffmpeg.version}` : deps.ffmpeg.message),
-    dependencyItem(
-      "Media extractor (yt-dlp)",
-      deps.extractor.ok,
-      deps.extractor.ok ? `Version ${deps.extractor.version ?? "unknown"}` : deps.extractor.message,
-    ),
-  );
+  if (els.dependencyList) {
+    els.dependencyList.replaceChildren(
+      dependencyItem("Backend", deps.backend.ok, `Version ${deps.backend.version}`),
+      dependencyItem("Python", deps.python.ok, `Version ${deps.python.version}`),
+      dependencyItem("FFmpeg", deps.ffmpeg.ok, deps.ffmpeg.ok ? `Version ${deps.ffmpeg.version}` : deps.ffmpeg.message),
+      dependencyItem(
+        "Media extractor (yt-dlp)",
+        deps.extractor.ok,
+        deps.extractor.ok ? `Version ${deps.extractor.version ?? "unknown"}` : deps.extractor.message,
+      ),
+    );
+  }
+
+  if (els.menuEngineStatus) {
+    const allOk = deps.backend?.ok && deps.ffmpeg?.ok && deps.extractor?.ok;
+    els.menuEngineStatus.textContent = allOk ? "Ready to Download" : "Attention Needed";
+  }
+  if (els.menuFfmpegStatus && deps.ffmpeg) {
+    const ver = deps.ffmpeg.version ? deps.ffmpeg.version.split("-")[0].trim() : "";
+    els.menuFfmpegStatus.textContent = deps.ffmpeg.ok ? `FFmpeg: Active ${ver}` : "FFmpeg: Not detected";
+  }
+  if (els.menuExtractorStatus && deps.extractor) {
+    const ver = deps.extractor.version ? `(${deps.extractor.version.trim()})` : "Universal";
+    els.menuExtractorStatus.textContent = deps.extractor.ok ? `Extractor: Active ${ver}` : "Extractor: Not ready";
+  }
 }
 
 export function renderDependencyError(message) {

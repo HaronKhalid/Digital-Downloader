@@ -85,7 +85,22 @@ jobs:
       - name: Build Windows Installer (Inno Setup)
         run: |
           choco install innosetup -y
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+          $candidates = @(
+            "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
+            "C:\Program Files\Inno Setup 6\ISCC.exe",
+            "C:\ProgramData\chocolatey\bin\iscc.exe",
+            "C:\ProgramData\chocolatey\lib\innosetup\tools\ISCC.exe",
+            "C:\tools\InnoSetup\ISCC.exe"
+          )
+          $iscc = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $iscc) {
+            $iscc = (Get-Command iscc -ErrorAction SilentlyContinue).Source
+          }
+          if (-not $iscc) {
+            $iscc = (Get-ChildItem -Path "C:\Program Files (x86)\Inno Setup*", "C:\Program Files\Inno Setup*" -Filter "ISCC.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+          }
+          Write-Host "Using ISCC compiler at: $iscc"
+          & "$iscc" installer.iss
         shell: powershell
 
       - name: Upload Windows Artifact

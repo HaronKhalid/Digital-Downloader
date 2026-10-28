@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Digital Downloader</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header><img src="../icons/icon48.png" alt="" width="32" height="32"><h1>Digital Downloader</h1></header>
+
+  <section id="paired" hidden>
+    <p id="page-title" class="muted"></p>
+    <div class="row">
+      <button id="send-video" class="primary">Download video</button>
+      <button id="send-audio">Audio only</button>
+    </div>
+    <button id="send-links" class="link" hidden>Send all links found on this page</button>
+    <p id="status" role="status" aria-live="polite"></p>
+    <button id="unpair" class="link">Unpair</button>
+  </section>
+
+  <section id="pairing" hidden>
+    <p>Connect once:</p>
+    <ol>
+      <li>Open the Digital Downloader app on this computer.</li>
+      <li>Go to <strong>Settings → Browser extension</strong> and press <strong>Copy</strong>.</li>
+      <li>Paste the code here.</li>
+    </ol>
+    <input id="code" type="text" placeholder="dd1.8000.…" autocomplete="off" spellcheck="false">
+    <button id="connect" class="primary">Connect</button>
+    <p id="pair-status" role="status" aria-live="polite"></p>
+  </section>
+
+  <script src="../lib.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

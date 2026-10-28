@@ -144,3 +144,19 @@ Cancelling a download yourself removes it from the restore list.
 Downloads the official yt-dlp binary from GitHub, verifies its SHA-256 against the release checksums, runs it to
 confirm the version, then swaps it in atomically. `409` while downloads are running. The updated binary lives in
 `<data>/bin/` and takes priority over the bundled one. Supported on Windows and Linux.
+
+## Browser extension API
+
+Two routes accept requests from browser-extension origins (`chrome-extension://`, `moz-extension://`). They need the
+header `X-Extension-Key: <key>` (the key inside the pairing code `dd1.<port>.<key>`). The session token is **not**
+accepted there, and every other route still rejects extension origins. Web pages can never call these routes.
+
+- `GET /api/extension/ping` → `{ "ok": true, "name": "Digital Downloader", "version": "…" }`
+- `POST /api/extension/send` with `{ "urls": ["https://…"], "mode": "best" | "audio" }` (1–25 links) → same response as `/api/jobs/batch`.
+
+Used by the Settings screen (session token required):
+- `GET /api/extension/pairing` → `{ "code": "dd1.8000.<key>", "port": 8000 }`
+- `POST /api/extension/pairing/rotate` → new code; the old key stops working immediately.
+- `POST /api/extension/open-folder` → opens the extension folder in the file manager.
+
+The key is stored in `extension_key.txt` next to the database.

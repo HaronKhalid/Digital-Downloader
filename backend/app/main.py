@@ -11,12 +11,13 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__
-from .api.routes import health, history, jobs, media, settings as settings_routes, system
+from .api.routes import extension, health, history, jobs, media, settings as settings_routes, system
 from .core.config import Settings, get_settings
 from .core.errors import register_exception_handlers
 from .core.logging import configure_logging
 from .core.security import LocalOnlyMiddleware
 from .services.download_service import DownloadService
+from .services.extension_key import ExtensionKey
 from .services.history_service import HistoryService
 from .services.job_service import AnalysisCache, JobService
 from .services.queue_store import QueueStore
@@ -92,6 +93,7 @@ def create_app(
         settings_service=app.state.settings_service,
     )
     app.state.opener = opener
+    app.state.extension_key = ExtensionKey(settings.database_path.parent / "extension_key.txt")
     app.state.ytdlp_updater = ytdlp_updater or YtDlpUpdater(
         managed_ytdlp_dir(), current_version=lambda: detect_ytdlp()[1]
     )
@@ -102,11 +104,13 @@ def create_app(
         port=settings.port,
         session_token=session_token,
         extra_origins=settings.cors_origins,
+        extension_key=app.state.extension_key,
     )
     register_exception_handlers(app)
 
     app.include_router(health.router)
     app.include_router(system.router)
+    app.include_router(extension.router)
     app.include_router(media.router)
     app.include_router(jobs.router)
     app.include_router(history.router)

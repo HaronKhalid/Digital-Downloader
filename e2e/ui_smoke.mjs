@@ -29,6 +29,8 @@ globalThis.fetch = async (url, init = {}) => {
     return json({ backend: { ok: true, version: "2" }, python: { ok: true, version: "3" }, ffmpeg: { ok: true, version: "6.1-x" }, extractor: { ok: true, version: "2026.10.21" } });
   if (path.startsWith("/api/history")) return json({ items: [] });
   if (path === "/api/settings") return json({ output_directory: "X", allowed_source_domains: ["*"], universal_mode: true });
+  if (path === "/api/extension/pairing") return json({ code: "dd1.8000.KEYONE", port: 8000 });
+  if (path === "/api/extension/pairing/rotate") return json({ code: "dd1.8000.KEYTWO", port: 8000 });
   if (path === "/api/settings/cookies") return json({ has_cookies: false, size_bytes: 0 });
   if (path === "/api/jobs/batch")
     return json({
@@ -128,6 +130,21 @@ $("extractor-update-button").click();
 await wait(60);
 assert.match($("extractor-update-message").textContent, /Updated/);
 assert.equal($("extractor-update-button").hidden, true);
+
+// ---- browser extension pairing ---------------------------------------------
+globalThis.requestAnimationFrame = (fn) => setTimeout(fn, 0);
+window.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+window.HTMLDialogElement.prototype.close = function () { this.open = false; };
+$("menu-toggle").click();
+$("open-settings").click();
+await wait(80);
+assert.equal($("extension-settings").hidden, false, "extension block shown on desktop");
+assert.equal($("extension-code").value, "dd1.8000.KEYONE");
+assert.equal($("extension-code").type, "password", "code is hidden by default");
+$("extension-rotate").click();
+await wait(60);
+assert.equal($("extension-code").value, "dd1.8000.KEYTWO");
+assert.match($("extension-message").textContent, /New code/);
 
 console.log("UI smoke test: all assertions passed");
 process.exit(0);

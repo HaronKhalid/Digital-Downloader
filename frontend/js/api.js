@@ -195,6 +195,10 @@ export const api = {
     return request("POST", `/api/history/${encodeURIComponent(id)}/open`, { action });
   },
 
+  extensionPairing: () => request("GET", "/api/extension/pairing"),
+  rotateExtensionPairing: () => request("POST", "/api/extension/pairing/rotate"),
+  openExtensionFolder: () => request("POST", "/api/extension/open-folder"),
+
   settings: () => (isAndroidApp() ? native("settings") : request("GET", "/api/settings")),
 
   updateSettings: (payload) => {

@@ -235,12 +235,56 @@ async function loadSettings() {
     setSettingsMessage("", "");
     setDomainsMessage("", "");
     if (isAndroidApp()) setupAndroidSettings(data);
+    else setupExtensionSettings();
 
     const cookies = await api.getCookies();
     renderCookiesStatus(cookies);
   } catch {
     setSettingsMessage("error", "Could not load settings.");
   }
+}
+
+let extensionSettingsReady = false;
+
+async function setupExtensionSettings() {
+  const box = document.getElementById("extension-settings");
+  const code = document.getElementById("extension-code");
+  const message = document.getElementById("extension-message");
+  if (!box || !code) return;
+  box.hidden = false;
+  const say = (text) => { if (message) message.textContent = text; };
+  const load = async (fn) => {
+    try {
+      code.value = (await fn()).code;
+    } catch (err) {
+      say(err instanceof ApiError ? err.message : "Could not load the pairing code.");
+    }
+  };
+  await load(api.extensionPairing);
+  if (extensionSettingsReady) return;
+  extensionSettingsReady = true;
+  document.getElementById("extension-copy")?.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(code.value);
+      say("Copied. Paste it into the extension.");
+    } catch {
+      code.type = "text";
+      code.select();
+      say("Press Ctrl+C to copy the selected code.");
+    }
+  });
+  document.getElementById("extension-rotate")?.addEventListener("click", async () => {
+    await load(api.rotateExtensionPairing);
+    say("New code created. Any extension using the old code is disconnected.");
+  });
+  document.getElementById("extension-folder")?.addEventListener("click", async () => {
+    try {
+      await api.openExtensionFolder();
+      say("Opened the extension folder.");
+    } catch (err) {
+      say(err instanceof ApiError ? err.message : "Could not open the folder.");
+    }
+  });
 }
 
 let androidSettingsReady = false;

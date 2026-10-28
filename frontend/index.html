@@ -367,6 +367,18 @@
         <p class="field-hint" id="settings-save-message" role="status" aria-live="polite"></p>
       </div>
 
+      <div class="field setting-field" id="extension-settings" hidden>
+        <label for="extension-code">Browser extension</label>
+        <p class="field-hint">Install the extension from the <strong>extension</strong> folder, then paste this code into it once. Keep the code private: anyone who has it can add downloads to this app.</p>
+        <input id="extension-code" type="password" readonly autocomplete="off" spellcheck="false">
+        <div class="cookies-actions">
+          <button type="button" id="extension-copy" class="button quiet small">Copy code</button>
+          <button type="button" id="extension-rotate" class="button quiet small">Make a new code</button>
+          <button type="button" id="extension-folder" class="button quiet small">Open extension folder</button>
+        </div>
+        <p class="field-hint" id="extension-message" role="status" aria-live="polite"></p>
+      </div>
+
       <div class="field setting-field" id="android-share-settings" hidden>
         <label for="share-mode-select">When you share a link to this app</label>
         <select id="share-mode-select">

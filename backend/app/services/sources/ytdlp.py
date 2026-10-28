@@ -343,6 +343,18 @@ class YtDlpSource(MediaSource):
             return ["--cookies", str(default_file)]
         return ["--no-cookies"]
 
+    def _cache_args(self) -> list[str]:
+        # Keeping yt-dlp's cache (YouTube player/signature data) makes repeat analyses several seconds faster.
+        # It holds no personal data and lives in the app's own data folder.
+        try:
+            from ...core.config import USER_DATA_DIR
+
+            folder = USER_DATA_DIR / "ytdlp-cache"
+            folder.mkdir(parents=True, exist_ok=True)
+            return ["--cache-dir", str(folder)]
+        except OSError:
+            return ["--no-cache-dir"]
+
     def _impersonate_args(self, url: str | None = None) -> list[str]:
         # Never impersonate desktop Chrome for YouTube: Google detects anomalous TLS/botguard fingerprints
         # on googlevideo/player API and responds with bot verification / HTTP 403 Forbidden.
@@ -356,7 +368,7 @@ class YtDlpSource(MediaSource):
         # Argument list only. "--" ends option parsing so the URL can never be read as a flag.
         cmd = [
             *self._base_command,
-            "--ignore-config", "--no-plugin-dirs", "--no-cache-dir", "--no-exec",
+            "--ignore-config", "--no-plugin-dirs", *self._cache_args(), "--no-exec",
             *self._cookie_args(),
             *self._impersonate_args(url),
             "--dump-single-json", "--no-playlist", "--no-warnings", "--no-progress",
@@ -500,7 +512,7 @@ class YtDlpSource(MediaSource):
         template = str(dest_dir / f"part{part}").replace("%", "%%") + ".%(ext)s"
         command = [
             *self._base_command,
-            "--ignore-config", "--no-plugin-dirs", "--no-cache-dir", "--no-exec",
+            "--ignore-config", "--no-plugin-dirs", *self._cache_args(), "--no-exec",
             *self._cookie_args(),
             *self._impersonate_args(url),
             "--no-playlist", "--no-warnings", "--no-mtime", "--newline",

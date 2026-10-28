@@ -68,15 +68,68 @@ object Engine {
         return cachedVersion!!
     }
 
-    /** Fetch information about one link and describe the choices the UI should offer. */
+    private class CachedAnalysis(val at: Long, val value: JSONObject)
+
+    private val analysisCache = object : LinkedHashMap<String, CachedAnalysis>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, CachedAnalysis>?) = size > 20
+    }
+
+    /** Fetch information about one link and describe the choices the UI should offer. Repeats within 10 minutes are instant. */
     fun analyze(ctx: Context, url: String): JSONObject {
+        synchronized(analysisCache) {
+            analysisCache[url]?.let { if (System.currentTimeMillis() - it.at < CACHE_MS) return JSONObject(it.value.toString()) }
+        }
+        val fresh = try {
+            analyzeUncached(ctx, url)
+        } catch (e: AppException) {
+            // Sites change their pages all the time and yt-dlp ships fixes within days. When a link is refused,
+            // fetch the newest yt-dlp once (at most every 6 hours) and try again before giving up.
+            if (e.code == "AUTH_REQUIRED" || e.code == "DOWNLOAD_FAILED" || e.code == "MEDIA_NOT_AVAILABLE") {
+                if (!refreshExtractorOnce(ctx)) throw e
+                analyzeUncached(ctx, url)
+            } else {
+                throw e
+            }
+        }
+        synchronized(analysisCache) { analysisCache[url] = CachedAnalysis(System.currentTimeMillis(), fresh) }
+        return JSONObject(fresh.toString())
+    }
+
+    @Volatile
+    private var lastAutoUpdate = 0L
+
+    private fun refreshExtractorOnce(ctx: Context): Boolean {
+        val now = System.currentTimeMillis()
+        if (now - lastAutoUpdate < AUTO_UPDATE_GAP_MS) return false
+        lastAutoUpdate = now
+        return try {
+            YoutubeDL.updateYoutubeDL(ctx)
+            cachedVersion = null
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /** Start the engine early (unpacking Python takes seconds the first time) so the first analysis is not slowed by it. */
+    fun warmUp(ctx: Context) {
+        Thread {
+            try {
+                ensureReady(ctx)
+            } catch (_: Exception) {
+            }
+        }.start()
+    }
+
+    private fun analyzeUncached(ctx: Context, url: String): JSONObject {
         ensureReady(ctx)
         val processId = "probe-" + UUID.randomUUID()
         val req = YoutubeDLRequest(url)
         req.addOption("--dump-single-json")
         req.addOption("--no-playlist")
         req.addOption("--no-warnings")
-        req.addOption("--socket-timeout", 20)
+        req.addOption("--socket-timeout", 15)
+        req.addOption("--extractor-retries", 1)
         cookieArgs(ctx, req)
 
         val timeout = watchdog.schedule(
@@ -259,5 +312,7 @@ object Engine {
         return JSONObject().put("previous", previous).put("installed", installed)
     }
 
-    private const val PROBE_TIMEOUT_S = 90L
+    private const val PROBE_TIMEOUT_S = 60L
+    private const val AUTO_UPDATE_GAP_MS = 6 * 60 * 60 * 1000L
+    private const val CACHE_MS = 10 * 60 * 1000L
 }

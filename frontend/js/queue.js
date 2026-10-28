@@ -2,7 +2,6 @@
 // Rows are updated in place (keyed by job id) so buttons keep focus while progress changes.
 // All text is assigned with textContent; remote titles can never inject markup.
 import { api, ApiError } from "./api.js";
-import { state } from "./state.js";
 import { formatEta, formatSize, formatSpeed } from "./format.js";
 import { els, showNotice } from "./ui.js";
 
@@ -42,7 +41,7 @@ function statusText(job) {
     case "processing":
       return "Processing…";
     case "completed":
-      return job.file_size ? `Completed · ${formatSize(job.file_size)}` : "Completed";
+      return `Saved${job.file_size ? ` · ${formatSize(job.file_size)}` : ""}`;
     case "failed":
       return job.error?.message || "The download failed.";
     case "cancelled":
@@ -94,13 +93,24 @@ function createRow(job) {
       showNotice("error", friendly(error));
     }
   });
+  const folder = button("Folder", "quiet", async () => {
+    if (window.AndroidBridge?.openDownloadsFolder) {
+      window.AndroidBridge.openDownloadsFolder();
+      return;
+    }
+    try {
+      await api.openJobFolder(job.job_id);
+    } catch (error) {
+      showNotice("error", friendly(error));
+    }
+  });
   const dismiss = button("Dismiss", "quiet", () => {
     dismissed.add(job.job_id);
     refreshQueue();
   });
-  actions.append(cancel, retry, open, dismiss);
+  actions.append(cancel, retry, open, folder, dismiss);
   li.append(main, actions);
-  return { li, refs: { title, status, bar, fill, cancel, retry, open, dismiss } };
+  return { li, refs: { title, status, bar, fill, cancel, retry, open, folder, dismiss } };
 }
 
 function updateRow({ li, refs }, job) {
@@ -108,6 +118,7 @@ function updateRow({ li, refs }, job) {
   refs.title.textContent = job.title || "Download";
   refs.title.title = job.title || "";
   refs.status.textContent = statusText(job);
+  refs.status.title = job.filename || "";
   const value = Math.max(0, Math.min(100, Number.isFinite(job.progress) ? job.progress : 0));
   refs.fill.style.setProperty("--progress", `${value}%`);
   refs.bar.setAttribute("aria-valuenow", String(Math.floor(value)));
@@ -117,6 +128,7 @@ function updateRow({ li, refs }, job) {
   refs.cancel.hidden = !active;
   refs.retry.hidden = !(job.status === "failed" || job.status === "cancelled");
   refs.open.hidden = job.status !== "completed";
+  refs.folder.hidden = job.status !== "completed";
   refs.dismiss.hidden = active;
 }
 
@@ -133,12 +145,9 @@ export function renderQueue(jobs) {
     }
   }
   firstRender = false;
-  // The download you are watching in the big card is not repeated in the list below.
-  const watchedId = els.panel && !els.panel.hidden ? state.lastJobId : null;
-  // Finished downloads live in "Download History"; this list is only for work in progress or needing attention.
-  const visible = jobs.filter(
-    (job) => job.status !== "completed" && !dismissed.has(job.job_id) && job.job_id !== watchedId,
-  );
+  // Everything from this session stays here (running, waiting, failed and finished) until you dismiss it.
+  // Older finished downloads are on the History page.
+  const visible = jobs.filter((job) => !dismissed.has(job.job_id));
   els.queueSection.hidden = visible.length === 0;
   const seen = new Set();
   let previous = null;

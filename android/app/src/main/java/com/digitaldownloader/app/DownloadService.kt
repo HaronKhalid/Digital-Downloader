@@ -147,7 +147,9 @@ class DownloadService : Service() {
         store.update(id, v)
         if (job.status != Download.STATUS_QUEUED) YoutubeDL.destroyProcessById(id)
         refreshSummary(force = true)
-        if (store.activeCount() == 0) finishIfIdle()
+        // Do not stop the service here: the worker thread is still tearing the download down and
+        // onJobFinished() stops the service once every worker is done.
+        if (store.activeCount() == 0 && scheduled.isEmpty()) finishIfIdle()
     }
 
     private fun cancelAll() {
@@ -224,13 +226,17 @@ class DownloadService : Service() {
         } catch (e: YoutubeDL.CanceledException) {
             markCancelled(id)
         } catch (e: InterruptedException) {
-            // The service is being stopped: leave the job queued so it resumes later.
-            val back = ContentValues()
-            back.put("status", Download.STATUS_QUEUED)
-            back.put("stage", "")
-            store.update(id, back)
-            Thread.currentThread().interrupt()
-            return
+            if (cancelRequested.contains(id)) {
+                markCancelled(id)
+            } else {
+                // The service is being stopped: leave the job queued so it resumes later.
+                val back = ContentValues()
+                back.put("status", Download.STATUS_QUEUED)
+                back.put("stage", "")
+                store.update(id, back)
+                Thread.currentThread().interrupt()
+                return
+            }
         } catch (e: AppException) {
             fail(id, e)
         } catch (e: YoutubeDLException) {

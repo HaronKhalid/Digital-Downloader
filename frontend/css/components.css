@@ -989,6 +989,7 @@ dialog::backdrop {
 
 .queue-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.4rem;
   flex-shrink: 0;
 }
@@ -1117,3 +1118,9 @@ dialog {
 .menu-drawer .menu-item-title {
   color: var(--text);
 }
+
+/* ---- History page (opened from the menu) ---- */
+.history-page { max-width: 880px; margin: 0 auto; padding-bottom: 2rem; }
+.history-page-head { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: 1.25rem; }
+.history-page-head h1 { margin: 0; font-size: clamp(1.25rem, 4vw, 1.75rem); flex: 1; text-align: center; }
+.history-page .history-list { margin: 0; }

@@ -1,5 +1,5 @@
 import { api, ApiError, isAndroidApp } from "./api.js";
-import { initJobs, resumeIfRunning, hidePanel } from "./jobs.js";
+import { initJobs } from "./jobs.js";
 import { hideMedia, renderMedia } from "./media.js";
 import { initQueue, kickQueue } from "./queue.js";
 import {
@@ -48,11 +48,13 @@ function extractUrls(raw) {
   return links.length >= 1 ? links : [text];
 }
 
-/** Show "Queue N links" and the quality choice when several links are pasted. */
+/** Show the quick-download choice for any link, and "Queue N links" when several are pasted. */
 function syncBatchUi() {
-  const count = extractUrls(els.input.value).length;
+  const links = extractUrls(els.input.value).filter((u) => /^https?:\/\//i.test(u));
+  const count = links.length;
   const multi = count > 1;
-  if (els.batchMode) els.batchMode.hidden = !multi;
+  if (els.batchMode) els.batchMode.hidden = count === 0;
+  if (els.quick) els.quick.hidden = count !== 1;
   if (!els.analyze.disabled) els.analyze.textContent = multi ? `Queue ${count} links` : "Analyze";
 }
 
@@ -77,7 +79,7 @@ async function queueBatch(urls) {
       kickQueue();
     }
     if (failed.length === 0) {
-      showNotice("success", `Added ${result.queued} downloads to the queue.`);
+      showNotice("success", result.queued === 1 ? "Added to your downloads." : `Added ${result.queued} downloads to your list.`);
       els.input.value = "";
       syncClearButton();
     } else {
@@ -96,6 +98,12 @@ async function queueBatch(urls) {
     setBusy(false);
     syncBatchUi();
   }
+}
+
+/** "Download now": skip the analysis and queue the link straight away with the chosen preset (best video or audio only). */
+async function quickDownload() {
+  const links = extractUrls(els.input.value);
+  if (links.length === 1 && !checkLocally(links[0])) await queueBatch(links);
 }
 
 async function analyze(event) {
@@ -172,10 +180,19 @@ async function refreshDependencies() {
     if (versionEl && deps.backend?.version) versionEl.textContent = `v${String(deps.backend.version).split(" ")[0]}`;
     if (!deps.ffmpeg.ok) setStatus("warn", "FFmpeg not found");
     else if (!deps.extractor.ok) setStatus("warn", "Media extractor not installed");
-    else setStatus("ok", `Ready · FFmpeg ${deps.ffmpeg.version.split("-")[0]}`);
+    else setStatus("ok", "Ready");
   } catch (error) {
     setStatus("error", isAndroidApp() ? "Download engine unavailable" : "Backend offline");
   }
+}
+
+/** The app has two pages: the home screen (link box + downloads) and History. */
+function showView(name) {
+  const history = name === "history";
+  if (els.homeView) els.homeView.hidden = history;
+  if (els.historyView) els.historyView.hidden = !history;
+  if (history) loadHistory();
+  try { window.scrollTo(0, 0); } catch (_) {}
 }
 
 async function loadHistory() {
@@ -299,7 +316,7 @@ function setupAndroidSettings(data) {
   const message = document.getElementById("share-settings-message");
   if (!box || !mode || !quality) return;
   box.hidden = false;
-  mode.value = data.share_mode || "background";
+  mode.value = data.share_mode || "ask";
   quality.value = data.share_quality || "best";
   if (androidSettingsReady) return;
   androidSettingsReady = true;
@@ -432,6 +449,7 @@ async function start() {
 
   els.form.addEventListener("submit", analyze);
   els.paste.addEventListener("click", pasteFromClipboard);
+  els.quick?.addEventListener("click", quickDownload);
   els.clear.addEventListener("click", clearInput);
   els.input.addEventListener("input", () => {
     hideMedia();
@@ -461,12 +479,15 @@ async function start() {
   if (els.menuHistoryLink) {
     els.menuHistoryLink.addEventListener("click", () => {
       closeMenu();
-      const historySec = document.getElementById("history-section") || els.historyList;
-      if (historySec) {
-        historySec.scrollIntoView({ behavior: "smooth" });
-      }
+      window.location.hash = "history";
     });
   }
+  els.historyBack?.addEventListener("click", () => {
+    if (window.location.hash === "#history") window.history.back();
+    else showView("home");
+  });
+  window.addEventListener("hashchange", () => showView(window.location.hash === "#history" ? "history" : "home"));
+  showView(window.location.hash === "#history" ? "history" : "home");
 
   if (els.themeToggle) {
     els.themeToggle.addEventListener("click", toggleTheme);
@@ -518,12 +539,6 @@ async function start() {
   if (els.closeMediaCard) {
     els.closeMediaCard.addEventListener("click", () => {
       hideMedia();
-    });
-  }
-
-  if (els.closeJobPanel) {
-    els.closeJobPanel.addEventListener("click", () => {
-      hidePanel();
     });
   }
 
@@ -619,7 +634,6 @@ async function start() {
   initJobs();
   initQueue();
   initExtractorUpdate();
-  document.addEventListener("pm:new-download", clearInput);
   document.addEventListener("pm:job-completed", () => {
     loadHistory();
   });
@@ -657,7 +671,6 @@ async function start() {
 
   await refreshDependencies();
   await loadHistory();
-  await resumeIfRunning();
   els.input.focus();
 }
 

@@ -141,8 +141,8 @@
   </aside>
 
   <main class="page">
-    <div class="app-layout">
-      <!-- Left Column: Input Area & History -->
+    <div class="app-layout" id="view-home">
+      <!-- Left Column: Input Area & Downloads -->
       <div class="app-left">
         <section class="hero" aria-labelledby="hero-title">
           <h1 id="hero-title">Paste any link,<br>get your file.</h1>
@@ -159,6 +159,7 @@
                 <option value="best">Best quality</option>
                 <option value="audio">Audio only</option>
               </select>
+              <button type="button" class="button secondary small" id="quick-button" hidden>Download now</button>
               <button type="submit" class="button primary analyze-cta" id="analyze-button">Analyze</button>
             </div>
           </form>
@@ -180,17 +181,6 @@
           <ul class="queue-list" id="queue-list" aria-live="polite"></ul>
         </section>
 
-        <!-- Download History -->
-        <section class="history" id="history-section" aria-labelledby="history-title">
-          <div class="history-head">
-            <h2 id="history-title">Download History</h2>
-            <div class="history-head-actions">
-              <button type="button" class="history-view-all" id="refresh-history-button">Refresh</button>
-            </div>
-          </div>
-          <p class="empty" id="history-empty">Nothing here yet. Finished downloads will appear in this list.</p>
-          <ul class="history-list" id="history-list" aria-live="polite"></ul>
-        </section>
       </div>
 
       <!-- Right Column: Interactive Download Window -->
@@ -272,81 +262,20 @@
             </div>
           </section>
 
-          <!-- State 3 & 4: Downloading & Complete State ("Downloading..." / "Download Complete") -->
-          <section id="job-panel" class="window-card progress-card" data-state="queued" aria-labelledby="job-head-title" hidden>
-            <div class="card-head">
-              <div class="head-with-badge">
-                <h3 id="job-head-title" class="card-head-title">Downloading...</h3>
-                <span id="job-complete-check" class="complete-badge-icon" hidden>
-                  <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-                    <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.707 7.707a1 1 0 0 0-1.414-1.414L10 13.586l-2.293-2.293a1 1 0 0 0-1.414 1.414l3 3a1 1 0 0 0 1.414 0l6-6z" clip-rule="evenodd"></path>
-                  </svg>
-                </span>
-              </div>
-              <button type="button" class="card-close-btn" id="close-job-panel" aria-label="Dismiss">✕</button>
-            </div>
-
-            <div class="media-preview-row">
-              <div class="media-thumb">
-                <img id="job-thumb-img" alt="" hidden>
-                <div id="job-thumb-fallback" class="thumb-fallback">
-                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="4"></rect><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>
-                </div>
-              </div>
-              <div class="media-meta">
-                <h4 id="job-title" class="media-title">Download</h4>
-                <p id="job-specs" class="media-specs">Preparing...</p>
-                <p id="job-stage" class="visually-hidden" aria-live="polite"></p>
-              </div>
-            </div>
-
-            <!-- Progress section (active during download) -->
-            <div class="job-progress-container" id="job-progress-section">
-              <div class="progress-bar-row">
-                <div class="progress" id="job-progress" role="progressbar" aria-labelledby="job-title" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-                  <div class="progress-bar" id="job-progress-bar"></div>
-                </div>
-                <span id="job-percent" class="progress-percent">0%</span>
-              </div>
-              <div class="progress-stats">
-                <span id="job-downloaded" class="stats-left">Downloading... 0%</span>
-                <span id="job-speed" class="stats-mid">—</span>
-                <span id="job-eta" class="stats-right">—</span>
-              </div>
-            </div>
-
-            <!-- Confirmation message (shown when completed) -->
-            <p id="job-message" class="job-message" role="status"></p>
-            <p id="job-save-confirmation" class="save-confirmation" hidden>
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.707 7.707a1 1 0 0 0-1.414-1.414L10 13.586l-2.293-2.293a1 1 0 0 0-1.414 1.414l3 3a1 1 0 0 0 1.414 0l6-6z" clip-rule="evenodd"></path>
-              </svg>
-              <span id="job-save-text">File saved to your device</span>
-            </p>
-
-            <!-- Actions row -->
-            <div class="job-actions">
-              <button type="button" class="button quiet" id="job-cancel">Cancel</button>
-              <button type="button" class="button primary" id="job-open-file" hidden>
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
-                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                </svg>
-                Open file
-              </button>
-              <button type="button" class="button secondary" id="job-open-folder" hidden>
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                </svg>
-                Open in folder
-              </button>
-              <button type="button" class="button primary" id="job-retry" hidden>Try again</button>
-              <button type="button" class="button quiet full-width" id="job-another" hidden>Download another file</button>
-            </div>
-          </section>
-
         </div>
       </div>
     </div>
+
+    <!-- History: its own page, opened from the menu -->
+    <section class="history-page" id="view-history" aria-labelledby="history-title" hidden>
+      <div class="history-page-head">
+        <button type="button" class="button quiet small" id="history-back">&larr; Back</button>
+        <h1 id="history-title">Download History</h1>
+        <button type="button" class="button quiet small" id="refresh-history-button">Refresh</button>
+      </div>
+      <p class="empty" id="history-empty">Nothing here yet. Finished downloads will appear in this list.</p>
+      <ul class="history-list" id="history-list" aria-live="polite"></ul>
+    </section>
   </main>
 
   <footer class="footer">
@@ -382,8 +311,9 @@
       <div class="field setting-field" id="android-share-settings" hidden>
         <label for="share-mode-select">When you share a link to this app</label>
         <select id="share-mode-select">
-          <option value="background">Download in the background (recommended)</option>
-          <option value="open">Open the app so I can choose the quality</option>
+          <option value="ask">Show a small window to pick quality and format</option>
+          <option value="background">Download in the background right away</option>
+          <option value="open">Open the app so I can inspect the link first</option>
         </select>
         <label for="share-quality-select" class="label-spaced">Background downloads save as</label>
         <select id="share-quality-select">

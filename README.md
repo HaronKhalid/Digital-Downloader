@@ -76,6 +76,7 @@ Digital Downloader v2 is organized into four clean layers:
 The repository includes an automated GitHub Actions pipeline at [`.github/workflows/build-and-release.yml`](.github/workflows/build-and-release.yml):
 
 - **Automated Testing**: Runs the complete 570+ unit and integration test suite across `backend/tests/` and `tests/core/`.
+- **Downloads & History**: every download lives in one live list on the main screen (many at once); History is its own page in the menu. On Android, sharing a link opens a small sheet to pick quality and format.
 - **Windows Packaging**: Builds a folder app (`DigitalDownloader.exe` + bundled yt-dlp/FFmpeg + browser extension), proves it starts with a headless self-test, and zips it as `DigitalDownloader-windows-x64.zip`.
 - **Browser extension**: see [extension/README.md](extension/README.md) and [docs/install-and-trust.md](docs/install-and-trust.md).
 - **Android APK Build**: Syncs web assets and compiles the native Android APK (`DigitalDownloader.apk`).

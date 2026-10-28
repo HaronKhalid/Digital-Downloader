@@ -8,11 +8,11 @@ object Prefs {
 
     private fun p(ctx: Context) = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
 
-    /** "background" = queue shared links silently, "open" = open the app with the link. */
-    fun shareMode(ctx: Context): String = p(ctx).getString("share_mode", "background") ?: "background"
+    /** "ask" = small sheet to pick quality and format, "background" = queue silently, "open" = open the app. */
+    fun shareMode(ctx: Context): String = p(ctx).getString("share_mode", "ask") ?: "ask"
 
     fun setShareMode(ctx: Context, value: String) {
-        if (value == "background" || value == "open") p(ctx).edit().putString("share_mode", value).apply()
+        if (value == "ask" || value == "background" || value == "open") p(ctx).edit().putString("share_mode", value).apply()
     }
 
     /** "best" = best video that plays everywhere, "audio" = audio only. Used for background shares. */

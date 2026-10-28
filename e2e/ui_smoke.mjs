@@ -61,13 +61,15 @@ jobs = [
 assert.equal(queue.renderQueue(jobs), true, "reports active jobs");
 assert.equal($("queue-section").hidden, false);
 const items = [...$("queue-list").children];
-assert.equal(items.length, 3, "finished downloads are shown in History, not here");
+assert.equal(items.length, 4, "running, waiting, failed and finished downloads all stay in the list");
 assert.equal(items[0].querySelector(".queue-title").textContent, hostile, "title is plain text");
 assert.equal(window.__xss, undefined, "no markup injection");
 assert.match(items[0].querySelector(".queue-status").textContent, /42%.*left/);
 assert.equal(items[2].dataset.state, "failed");
+assert.equal(items[3].dataset.state, "completed");
 const vis = (li, label) => [...li.querySelectorAll("button")].filter((b) => !b.hidden).map((b) => b.textContent).includes(label);
 assert.ok(vis(items[0], "Cancel") && !vis(items[0], "Retry"));
+assert.ok(vis(items[3], "Open") && vis(items[3], "Folder") && !vis(items[3], "Cancel"), "finished rows can be opened");
 assert.ok(vis(items[2], "Retry") && vis(items[2], "Dismiss") && !vis(items[2], "Cancel"));
 
 // rows are reused (not recreated) and removed when gone
@@ -130,6 +132,18 @@ $("extractor-update-button").click();
 await wait(60);
 assert.match($("extractor-update-message").textContent, /Updated/);
 assert.equal($("extractor-update-button").hidden, true);
+
+// ---- history is its own page ------------------------------------------------
+assert.equal($("view-history").hidden, true, "history is not on the main screen");
+assert.equal($("view-home").hidden, false);
+assert.equal(document.getElementById("history-section"), null, "no history block on the home page");
+window.location.hash = "history";
+await wait(60);
+assert.equal($("view-history").hidden, false, "menu opens the history page");
+assert.equal($("view-home").hidden, true);
+window.location.hash = "";
+await wait(60);
+assert.equal($("view-home").hidden, false);
 
 // ---- browser extension pairing ---------------------------------------------
 globalThis.requestAnimationFrame = (fn) => setTimeout(fn, 0);

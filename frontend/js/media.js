@@ -1,6 +1,5 @@
 // Renders normalized analysis results for LinkFetch.
 import { formatDuration, formatSize } from "./format.js";
-import { state } from "./state.js";
 import { els } from "./ui.js";
 
 const VIDEO_OUTPUTS = ["mp4", "mkv", "webm"];
@@ -96,11 +95,10 @@ function updateSize() {
   }
 }
 
-/** The Download button is only usable when a result is shown and no download is already running. */
+/** The Download button is usable whenever a result with a chosen format is shown. */
 export function syncDownloadButton() {
-  const busy = state.activeJobId !== null;
-  els.download.disabled = busy || selectedFormat() === null;
-  els.downloadHint.textContent = busy ? "A download is already running." : "Safe & secure download";
+  els.download.disabled = selectedFormat() === null;
+  els.downloadHint.textContent = "Safe & secure download";
 }
 
 export function renderMedia(analysis) {
@@ -108,7 +106,6 @@ export function renderMedia(analysis) {
   current = { analysis, groups };
 
   if (els.cardEmptyState) els.cardEmptyState.hidden = true;
-  if (els.panel) els.panel.hidden = true;
 
   els.title.textContent = analysis.title;
   if (els.source) els.source.textContent = analysis.source_label;
@@ -140,7 +137,7 @@ export function renderMedia(analysis) {
 export function hideMedia() {
   current = null;
   els.card.hidden = true;
-  if (els.cardEmptyState && (!els.panel || els.panel.hidden)) {
+  if (els.cardEmptyState) {
     els.cardEmptyState.hidden = false;
   }
 }

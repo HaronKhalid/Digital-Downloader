@@ -9,6 +9,7 @@ export const els = {
   paste: $("paste-button"),
   clear: $("clear-button"),
   analyze: $("analyze-button"),
+  quick: $("quick-button"),
   notice: $("notice"),
   noticeText: $("notice-text"),
   status: $("status"),
@@ -51,7 +52,6 @@ export const els = {
   // Download Window elements
   cardEmptyState: $("card-empty-state"),
   closeMediaCard: $("close-media-card"),
-  closeJobPanel: $("close-job-panel"),
   card: $("media-card"),
   thumbImg: $("media-thumb-img"),
   thumbFallback: $("media-thumb-fallback"),
@@ -66,31 +66,6 @@ export const els = {
   download: $("download-button"),
   downloadHint: $("download-hint"),
 
-  // Job panel elements
-  panel: $("job-panel"),
-  jobHeadTitle: $("job-head-title"),
-  jobCompleteCheck: $("job-complete-check"),
-  jobSaveConfirmation: $("job-save-confirmation"),
-  jobSaveText: $("job-save-text"),
-  jobProgressSection: $("job-progress-section"),
-  jobThumbImg: $("job-thumb-img"),
-  jobThumbFallback: $("job-thumb-fallback"),
-  jobTitle: $("job-title"),
-  jobSpecs: $("job-specs"),
-  jobStage: $("job-stage"),
-  jobProgress: $("job-progress"),
-  jobBar: $("job-progress-bar"),
-  jobPercent: $("job-percent"),
-  jobDownloaded: $("job-downloaded"),
-  jobSpeed: $("job-speed"),
-  jobEta: $("job-eta"),
-  jobMessage: $("job-message"),
-  jobCancel: $("job-cancel"),
-  jobOpenFile: $("job-open-file"),
-  jobOpenFolder: $("job-open-folder"),
-  jobRetry: $("job-retry"),
-  jobAnother: $("job-another"),
-
   // Queue, batch and extractor update
   queueSection: $("queue-section"),
   queueList: $("queue-list"),
@@ -101,6 +76,9 @@ export const els = {
   extractorUpdate: $("extractor-update-button"),
   extractorMessage: $("extractor-update-message"),
 
+  homeView: $("view-home"),
+  historyView: $("view-history"),
+  historyBack: $("history-back"),
   historyEmpty: $("history-empty"),
   historyList: $("history-list"),
   refreshHistory: $("refresh-history-button"),
@@ -120,6 +98,7 @@ export function setStatus(state, text) {
 
 export function setBusy(busy) {
   els.analyze.disabled = busy;
+  if (els.quick) els.quick.disabled = busy;
   els.analyze.textContent = busy ? "Analyzing…" : "Analyze";
   els.form.setAttribute("aria-busy", String(busy));
 }
@@ -131,7 +110,6 @@ export function syncClearButton() {
 export function showEmptyWindow() {
   if (els.cardEmptyState) els.cardEmptyState.hidden = false;
   if (els.card) els.card.hidden = true;
-  if (els.panel) els.panel.hidden = true;
 }
 
 // ----------------------------------------------------------------- Theme

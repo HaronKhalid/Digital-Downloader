@@ -68,15 +68,41 @@ object Engine {
         return cachedVersion!!
     }
 
-    /** Fetch information about one link and describe the choices the UI should offer. */
+    private class CachedAnalysis(val at: Long, val value: JSONObject)
+
+    private val analysisCache = object : LinkedHashMap<String, CachedAnalysis>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, CachedAnalysis>?) = size > 20
+    }
+
+    /** Fetch information about one link and describe the choices the UI should offer. Repeats within 10 minutes are instant. */
     fun analyze(ctx: Context, url: String): JSONObject {
+        synchronized(analysisCache) {
+            analysisCache[url]?.let { if (System.currentTimeMillis() - it.at < CACHE_MS) return JSONObject(it.value.toString()) }
+        }
+        val fresh = analyzeUncached(ctx, url)
+        synchronized(analysisCache) { analysisCache[url] = CachedAnalysis(System.currentTimeMillis(), fresh) }
+        return JSONObject(fresh.toString())
+    }
+
+    /** Start the engine early (unpacking Python takes seconds the first time) so the first analysis is not slowed by it. */
+    fun warmUp(ctx: Context) {
+        Thread {
+            try {
+                ensureReady(ctx)
+            } catch (_: Exception) {
+            }
+        }.start()
+    }
+
+    private fun analyzeUncached(ctx: Context, url: String): JSONObject {
         ensureReady(ctx)
         val processId = "probe-" + UUID.randomUUID()
         val req = YoutubeDLRequest(url)
         req.addOption("--dump-single-json")
         req.addOption("--no-playlist")
         req.addOption("--no-warnings")
-        req.addOption("--socket-timeout", 20)
+        req.addOption("--socket-timeout", 15)
+        req.addOption("--extractor-retries", 1)
         cookieArgs(ctx, req)
 
         val timeout = watchdog.schedule(
@@ -259,5 +285,6 @@ object Engine {
         return JSONObject().put("previous", previous).put("installed", installed)
     }
 
-    private const val PROBE_TIMEOUT_S = 90L
+    private const val PROBE_TIMEOUT_S = 60L
+    private const val CACHE_MS = 10 * 60 * 1000L
 }

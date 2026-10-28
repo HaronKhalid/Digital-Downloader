@@ -64,7 +64,13 @@ class DownloadStore private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "d
 
     @Synchronized
     fun update(id: String, values: ContentValues) {
-        writableDatabase.update("downloads", values, "id = ?", arrayOf(id))
+        // A cancelled download stays cancelled: late progress or "back to the queue" writes from the worker
+        // thread that was still shutting down must never bring it back to life.
+        if (values.getAsString("status") == Download.STATUS_CANCELLED) {
+            writableDatabase.update("downloads", values, "id = ?", arrayOf(id))
+        } else {
+            writableDatabase.update("downloads", values, "id = ? AND status != ?", arrayOf(id, Download.STATUS_CANCELLED))
+        }
     }
 
     @Synchronized

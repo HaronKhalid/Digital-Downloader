@@ -158,3 +158,11 @@
 .footer {
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
+
+/* ---- phone: command bar wraps instead of overflowing; the empty hint card is not needed ---- */
+@media (max-width: 900px) {
+  .command-actions { flex-wrap: wrap; row-gap: 0.5rem; }
+  .command-actions .batch-mode { flex: 1 1 100%; max-width: none; order: 5; }
+  .command-actions .analyze-cta { flex: 1 1 auto; }
+  #card-empty-state { display: none; }
+}

@@ -18,8 +18,14 @@ object AppErrors {
         return when {
             "unsupported url" in lower ->
                 AppException("UNSUPPORTED_SOURCE", "This website or link type isn't supported.")
-            "sign in" in lower || "log in" in lower || "login" in lower || "cookies" in lower ||
-                "confirm you" in lower || "private" in lower ->
+            "unable to extract webpage video data" in lower || "unable to extract video data" in lower || "unable to extract" in lower ->
+                AppException("EXTRACTION_FAILED", "Couldn't extract video from this link" + detail(text) + ". Try updating the engine in Settings.")
+            "confirm you're not a bot" in lower || "confirm you’re not a bot" in lower || "bot verification" in lower ->
+                AppException("BOT_VERIFICATION", "The platform requested bot verification. Please try again in a few minutes.")
+            "403" in lower || "forbidden" in lower ->
+                AppException("ACCESS_DENIED", "The website refused the download request (HTTP 403 Forbidden). Try updating the engine in Settings or choose another quality.")
+            "sign in" in lower || "log in" in lower || "login" in lower || "private" in lower ||
+                "rate-limit reached or login required" in lower || "cookies" in lower ->
                 AppException("AUTH_REQUIRED", "This site asked for a sign-in for this link" + detail(text) + ". If it keeps happening, add cookies in Settings.")
             "video unavailable" in lower || "not available" in lower || "removed" in lower || "does not exist" in lower ->
                 AppException("MEDIA_NOT_AVAILABLE", "This media isn't available any more or isn't public.")

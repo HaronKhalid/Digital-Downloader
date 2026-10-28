@@ -193,7 +193,32 @@ class DownloadService : Service() {
             Engine.ensureReady(this)
             val request = Engine.downloadRequest(this, job, work)
             val callback: (Float, Long, String) -> Unit = { percent, eta, line -> onLine(id, tracker, percent, eta, line) }
-            YoutubeDL.execute(request, id, callback)
+            try {
+                YoutubeDL.execute(request, id, callback)
+            } catch (e: YoutubeDLException) {
+                if (cancelRequested.contains(id)) throw YoutubeDL.CanceledException()
+                val msg = e.message ?: ""
+                val isTikTok = Engine.isTikTokUrl(job.url)
+                if (isTikTok && (msg.contains("unable to extract", ignoreCase = true) || msg.contains("tiktok", ignoreCase = true) || msg.contains("sign in", ignoreCase = true))) {
+                    Engine.tryTikTokFallback(job.url)
+                    val directUrl = Engine.getFallbackUrl(job.url, job.formatId)
+                    if (!directUrl.isNullOrBlank()) {
+                        work.deleteRecursively()
+                        work.mkdirs()
+                        val retryReq = Engine.directDownloadRequest(directUrl, job, work)
+                        YoutubeDL.execute(retryReq, id, callback)
+                    } else {
+                        throw e
+                    }
+                } else if (msg.contains("403", ignoreCase = true) || msg.contains("forbidden", ignoreCase = true)) {
+                    work.deleteRecursively()
+                    work.mkdirs()
+                    val retryReq = Engine.downloadRequest(this, job, work, fallbackMode = true)
+                    YoutubeDL.execute(retryReq, id, callback)
+                } else {
+                    throw e
+                }
+            }
 
             if (cancelRequested.contains(id)) throw YoutubeDL.CanceledException()
 

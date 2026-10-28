@@ -376,6 +376,8 @@ class YtDlpSource(MediaSource):
         ]
         if is_youtube_url(url):
             cmd.extend(["--extractor-args", "youtube:player_client=android,web;player_skip=configs"])
+        elif not self._impersonate_args(url):
+            cmd.extend(["--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"])
         cmd.extend(["--", url])
         return cmd
 
@@ -524,6 +526,8 @@ class YtDlpSource(MediaSource):
         ]
         if is_youtube_url(url):
             command.extend(["--extractor-args", "youtube:player_client=android,web;player_skip=configs"])
+        elif not self._impersonate_args(url):
+            command.extend(["--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"])
         if ctx.ffmpeg_location:
             command += ["--ffmpeg-location", ctx.ffmpeg_location]
         return [*command, "--", url]

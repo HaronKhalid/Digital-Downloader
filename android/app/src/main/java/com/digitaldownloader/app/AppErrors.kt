@@ -4,6 +4,13 @@ package com.digitaldownloader.app
 class AppException(val code: String, override val message: String) : Exception(message)
 
 object AppErrors {
+    /** The site's own reason (last error line), so a real cause is visible instead of a generic message. */
+    private fun detail(text: String): String {
+        val last = text.lines().lastOrNull { it.contains("ERROR", ignoreCase = true) } ?: return ""
+        val clean = last.substringAfter("ERROR:", last).replace(Regex("\\[[^\\]]*\\]"), "").trim().take(120)
+        return if (clean.isEmpty()) "" else " ($clean)"
+    }
+
     /** Turns raw yt-dlp output into a short code and a friendly message. */
     fun fromEngine(raw: String?): AppException {
         val text = (raw ?: "").trim()
@@ -13,7 +20,7 @@ object AppErrors {
                 AppException("UNSUPPORTED_SOURCE", "This website or link type isn't supported.")
             "sign in" in lower || "log in" in lower || "login" in lower || "cookies" in lower ||
                 "confirm you" in lower || "private" in lower ->
-                AppException("AUTH_REQUIRED", "This link needs you to be signed in. Add your cookies in Settings and try again.")
+                AppException("AUTH_REQUIRED", "This site asked for a sign-in for this link" + detail(text) + ". If it keeps happening, add cookies in Settings.")
             "video unavailable" in lower || "not available" in lower || "removed" in lower || "does not exist" in lower ->
                 AppException("MEDIA_NOT_AVAILABLE", "This media isn't available any more or isn't public.")
             "429" in lower || "too many requests" in lower ->

@@ -72,7 +72,7 @@
   border-radius: var(--radius-control);
   border: none;
   cursor: pointer;
-  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.25);
+  box-shadow: 0 1px 3px rgba(11, 18, 38, 0.25);
   transition: background-color 150ms ease, transform 100ms ease;
 }
 
@@ -285,7 +285,7 @@
   width: 76px;
   height: 58px;
   background: var(--accent-subtle);
-  border: 1.5px dashed rgba(37, 99, 235, 0.35);
+  border: 1.5px dashed var(--gold);
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -423,7 +423,7 @@
   font-size: 0.95rem;
   font-weight: 600;
   border-radius: var(--radius-control);
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+  box-shadow: 0 2px 6px rgba(11, 18, 38, 0.25);
 }
 
 .safe-badge {
@@ -461,7 +461,7 @@
 .progress-bar {
   height: 100%;
   width: var(--progress, 0%);
-  background: var(--accent);
+  background: var(--progress-fill);
   border-radius: var(--radius-pill);
   transition: width 200ms ease;
 }
@@ -982,7 +982,7 @@ dialog::backdrop {
 .queue-bar-fill {
   height: 100%;
   width: var(--progress, 0%);
-  background: var(--accent);
+  background: var(--progress-fill);
   border-radius: var(--radius-pill);
   transition: width 300ms ease;
 }
@@ -1017,4 +1017,103 @@ dialog::backdrop {
   .queue-actions {
     justify-content: flex-end;
   }
+}
+
+/* ------------------------------------------------------------------ Polish pass */
+.field-hint-tight {
+  margin-top: 0.1rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.label-spaced {
+  margin-top: 0.6rem;
+}
+
+.setting-details {
+  margin: 0.25rem 0;
+}
+
+.setting-summary {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.cookies-field {
+  margin-top: 0.75rem;
+}
+
+.cookies-paste-box {
+  margin-top: 0.5rem;
+}
+
+/* One consistent look for every form control inside the settings window */
+dialog select,
+dialog textarea,
+dialog input[type="text"] {
+  width: 100%;
+  min-width: 0;
+  padding: 0.55rem 0.75rem;
+  background: var(--surface-subtle);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+dialog select {
+  height: 2.5rem;
+}
+
+dialog select:focus-visible,
+dialog textarea:focus-visible,
+dialog input:focus-visible {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: var(--shadow-focus);
+}
+
+.input-with-button input {
+  min-width: 0;
+}
+
+.input-with-button .button {
+  flex-shrink: 0;
+}
+
+dialog {
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+}
+
+.dialog-body {
+  padding: 1.5rem;
+}
+
+@media (max-width: 480px) {
+  .dialog-body {
+    padding: 1.25rem 1rem;
+  }
+  dialog {
+    width: calc(100vw - 1.5rem);
+  }
+}
+
+/* Primary buttons follow the brand (navy on light, gold on dark) */
+.button.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.button.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.menu-drawer .menu-drawer-title,
+.menu-drawer .menu-item-title {
+  color: var(--text);
 }

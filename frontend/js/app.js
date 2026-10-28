@@ -40,11 +40,12 @@ function checkLocally(raw) {
 
 /** Every http(s) link in the box, separated by spaces or new lines. Duplicates are dropped. */
 function extractUrls(raw) {
-  const seen = new Set();
-  return (raw || "")
-    .split(/\s+/)
-    .map((part) => part.trim())
-    .filter((part) => part && !seen.has(part) && seen.add(part));
+  const text = (raw || "").trim();
+  if (!text) return [];
+  // Only words that start with http:// or https:// count as links, so notes around a pasted link are ignored.
+  const links = [...new Set(text.split(/\s+/).filter((part) => /^https?:\/\//i.test(part)))];
+  // One link plus a note ("watch this https://...") is treated as that one link; no links at all is left as typed.
+  return links.length >= 1 ? links : [text];
 }
 
 /** Show "Queue N links" and the quality choice when several links are pasted. */
@@ -104,7 +105,7 @@ async function analyze(event) {
     await queueBatch(links);
     return;
   }
-  const url = (els.input.value || "").trim();
+  const url = links[0] || "";
   const problem = checkLocally(url);
   if (problem) {
     hideMedia();
@@ -167,6 +168,8 @@ async function refreshDependencies() {
   try {
     const deps = await api.dependencies();
     renderDependencies(deps);
+    const versionEl = document.getElementById("app-version");
+    if (versionEl && deps.backend?.version) versionEl.textContent = `v${String(deps.backend.version).split(" ")[0]}`;
     if (!deps.ffmpeg.ok) setStatus("warn", "FFmpeg not found");
     else if (!deps.extractor.ok) setStatus("warn", "Media extractor not installed");
     else setStatus("ok", `Ready · FFmpeg ${deps.ffmpeg.version.split("-")[0]}`);

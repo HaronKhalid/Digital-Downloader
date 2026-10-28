@@ -26,7 +26,7 @@ def sync_assets() -> None:
     # 2. Also create a 'static/' symlink/mirror folder for /static/... absolute resolution in WebView
     static_dest = ANDROID_ASSETS / "static"
     static_dest.mkdir(parents=True, exist_ok=True)
-    for folder in ("css", "js", "img"):
+    for folder in ("css", "js", "img", "fonts"):
         src = FRONTEND / folder
         if src.is_dir():
             shutil.copytree(src, static_dest / folder, dirs_exist_ok=True)

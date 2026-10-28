@@ -59,7 +59,7 @@ jobs = [
 assert.equal(queue.renderQueue(jobs), true, "reports active jobs");
 assert.equal($("queue-section").hidden, false);
 const items = [...$("queue-list").children];
-assert.equal(items.length, 4);
+assert.equal(items.length, 3, "finished downloads are shown in History, not here");
 assert.equal(items[0].querySelector(".queue-title").textContent, hostile, "title is plain text");
 assert.equal(window.__xss, undefined, "no markup injection");
 assert.match(items[0].querySelector(".queue-status").textContent, /42%.*left/);
@@ -67,7 +67,6 @@ assert.equal(items[2].dataset.state, "failed");
 const vis = (li, label) => [...li.querySelectorAll("button")].filter((b) => !b.hidden).map((b) => b.textContent).includes(label);
 assert.ok(vis(items[0], "Cancel") && !vis(items[0], "Retry"));
 assert.ok(vis(items[2], "Retry") && vis(items[2], "Dismiss") && !vis(items[2], "Cancel"));
-assert.ok(vis(items[3], "Open"));
 
 // rows are reused (not recreated) and removed when gone
 const firstNode = items[0];
@@ -113,7 +112,7 @@ assert.equal(input.value, "https://b.example/2", "only the failed link stays for
 
 // invalid link in a batch is rejected locally, nothing sent
 const before = calls.filter((c) => c.path === "/api/jobs/batch").length;
-input.value = "https://a.example/1 not-a-link";
+input.value = "https://a.example/1 https://b.example/2 http://[bad";
 input.dispatchEvent(new window.Event("input"));
 $("url-form").dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
 await wait(50);

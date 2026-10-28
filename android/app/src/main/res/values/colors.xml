@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="primary">#2563EB</color>
-    <color name="primary_dark">#1D4ED8</color>
-    <color name="surface_light">#FFFFFF</color>
-    <color name="surface_dark">#0B0F17</color>
-    <color name="text_primary">#0F172A</color>
+    <color name="primary">#0B1226</color>
+    <color name="primary_dark">#070C1A</color>
+    <color name="gold">#D4AF37</color>
+    <color name="surface_light">#F6F7FB</color>
+    <color name="surface_dark">#0B1120</color>
+    <color name="text_primary">#0B1120</color>
 </resources>

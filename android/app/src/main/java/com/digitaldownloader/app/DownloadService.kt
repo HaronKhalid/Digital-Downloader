@@ -57,7 +57,7 @@ class DownloadService : Service() {
         acquireWakeLock()
         when (intent?.action) {
             ACTION_CANCEL_ALL -> cancelAll()
-            ACTION_CANCEL -> intent.getStringExtra(EXTRA_ID)?.let { cancelJob(it) }
+            ACTION_CANCEL -> intent?.getStringExtra(EXTRA_ID)?.let { cancelJob(it) }
         }
         scheduleQueued()
         if (store.activeCount() == 0) finishIfIdle()

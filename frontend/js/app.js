@@ -40,11 +40,12 @@ function checkLocally(raw) {
 
 /** Every http(s) link in the box, separated by spaces or new lines. Duplicates are dropped. */
 function extractUrls(raw) {
-  const seen = new Set();
-  return (raw || "")
-    .split(/\s+/)
-    .map((part) => part.trim())
-    .filter((part) => part && !seen.has(part) && seen.add(part));
+  const text = (raw || "").trim();
+  if (!text) return [];
+  // Only words that start with http:// or https:// count as links, so notes around a pasted link are ignored.
+  const links = [...new Set(text.split(/\s+/).filter((part) => /^https?:\/\//i.test(part)))];
+  // One link plus a note ("watch this https://...") is treated as that one link; no links at all is left as typed.
+  return links.length >= 1 ? links : [text];
 }
 
 /** Show "Queue N links" and the quality choice when several links are pasted. */
@@ -104,7 +105,7 @@ async function analyze(event) {
     await queueBatch(links);
     return;
   }
-  const url = (els.input.value || "").trim();
+  const url = links[0] || "";
   const problem = checkLocally(url);
   if (problem) {
     hideMedia();
@@ -167,6 +168,8 @@ async function refreshDependencies() {
   try {
     const deps = await api.dependencies();
     renderDependencies(deps);
+    const versionEl = document.getElementById("app-version");
+    if (versionEl && deps.backend?.version) versionEl.textContent = `v${String(deps.backend.version).split(" ")[0]}`;
     if (!deps.ffmpeg.ok) setStatus("warn", "FFmpeg not found");
     else if (!deps.extractor.ok) setStatus("warn", "Media extractor not installed");
     else setStatus("ok", `Ready · FFmpeg ${deps.ffmpeg.version.split("-")[0]}`);
@@ -232,12 +235,56 @@ async function loadSettings() {
     setSettingsMessage("", "");
     setDomainsMessage("", "");
     if (isAndroidApp()) setupAndroidSettings(data);
+    else setupExtensionSettings();
 
     const cookies = await api.getCookies();
     renderCookiesStatus(cookies);
   } catch {
     setSettingsMessage("error", "Could not load settings.");
   }
+}
+
+let extensionSettingsReady = false;
+
+async function setupExtensionSettings() {
+  const box = document.getElementById("extension-settings");
+  const code = document.getElementById("extension-code");
+  const message = document.getElementById("extension-message");
+  if (!box || !code) return;
+  box.hidden = false;
+  const say = (text) => { if (message) message.textContent = text; };
+  const load = async (fn) => {
+    try {
+      code.value = (await fn()).code;
+    } catch (err) {
+      say(err instanceof ApiError ? err.message : "Could not load the pairing code.");
+    }
+  };
+  await load(api.extensionPairing);
+  if (extensionSettingsReady) return;
+  extensionSettingsReady = true;
+  document.getElementById("extension-copy")?.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(code.value);
+      say("Copied. Paste it into the extension.");
+    } catch {
+      code.type = "text";
+      code.select();
+      say("Press Ctrl+C to copy the selected code.");
+    }
+  });
+  document.getElementById("extension-rotate")?.addEventListener("click", async () => {
+    await load(api.rotateExtensionPairing);
+    say("New code created. Any extension using the old code is disconnected.");
+  });
+  document.getElementById("extension-folder")?.addEventListener("click", async () => {
+    try {
+      await api.openExtensionFolder();
+      say("Opened the extension folder.");
+    } catch (err) {
+      say(err instanceof ApiError ? err.message : "Could not open the folder.");
+    }
+  });
 }
 
 let androidSettingsReady = false;

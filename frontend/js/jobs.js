@@ -111,14 +111,15 @@ function render(job) {
         const outDir = els.outputDirectory?.value?.trim();
         if (outDir) {
           const parts = outDir.split(/[\\/]/).filter(Boolean);
-          const shortName = parts.length > 1 ? parts.slice(-2).join("\\") : (parts[0] || "Downloads");
+          const sep = outDir.includes("\\") && !outDir.includes("/") ? "\\" : "/";
+          const shortName = parts.length > 1 ? parts.slice(-2).join(sep) : (parts[0] || "Downloads");
           els.jobSaveText.textContent = `Saved to ${shortName}`;
         } else {
           els.jobSaveText.textContent = "File saved to your device";
         }
       }
       if (els.jobProgressSection) els.jobProgressSection.hidden = true;
-      els.jobMessage.textContent = "";
+      els.jobMessage.textContent = job.filename ? `Saved as ${job.filename}` : "";
       if (els.jobAnother) els.jobAnother.textContent = "Download another file";
       showButtons(["openFile", "openFolder", "another"]);
       document.dispatchEvent(new CustomEvent("pm:job-completed", { detail: job }));

@@ -2,7 +2,7 @@
 ; Generates DigitalDownloader-Setup.exe installer
 
 #define MyAppName "Digital Downloader"
-#define MyAppVersion "2.0.0"
+#define MyAppVersion "2.1.0"
 #define MyAppPublisher "Digital Takhleeq"
 #define MyAppURL "https://github.com/HaronKhalid/Digital-Downloader"
 #define MyAppExeName "DigitalDownloader.exe"
@@ -20,16 +20,18 @@ DisableProgramGroupPage=yes
 OutputDir=dist
 OutputBaseFilename=DigitalDownloader-Setup
 SetupIconFile=Assets\app_icon.ico
-Compression=lzma2/ultra64
+Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=lowest
-VersionInfoVersion=2.0.0.0
+CloseApplications=yes
+UninstallDisplayIcon={app}\{#MyAppExeName}
+VersionInfoVersion=2.1.0.0
 VersionInfoCompany=Digital Takhleeq
 VersionInfoDescription=Digital Downloader Standalone App
 VersionInfoCopyright=Copyright (C) 2026 Digital Takhleeq
 VersionInfoProductName=Digital Downloader
-VersionInfoProductVersion=2.0.0.0
+VersionInfoProductVersion=2.1.0.0
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -38,8 +40,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "dist\DigitalDownloader.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "bin\*"; DestDir: "{app}\bin"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist\DigitalDownloader\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "extension\*"; DestDir: "{app}\extension"; Excludes: "test.mjs,*.md"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]

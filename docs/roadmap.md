@@ -15,7 +15,7 @@ Status as of 2026-10-28. Estimates are planning guesses, not commitments.
 |---|---|---|
 | 1b. Desktop (remaining) | Playlists, pause/resume, tray icon + notifications, brand-matched UI (navy/gold) | Single-link flow still shows one foreground panel |
 | 2. Android (in progress) | Built: on-device yt-dlp + FFmpeg, foreground download service with queue (3 at once), share-to-background, notifications, MediaStore saving, honest progress, cookies, extractor update. Still to do: playlists, pause/resume, Wi-Fi-only option, per-ABI APK split | First on-device release; needs real-phone testing |
-| 3. Browser extension | Manifest V3 "Send to Digital Downloader" for Chrome/Edge/Firefox, paired with the desktop app | Needs a dedicated authenticated endpoint |
+| 3. Browser extension | **Done**: Manifest V3 "Send to Digital Downloader" for Chrome/Edge/Firefox, paired with the desktop app by a private code | Store publishing needs paid developer accounts |
 | 4. Polish | Code-signed Windows build, Linux AppImage, localization, accessibility pass | |
 
 ## Known limits today

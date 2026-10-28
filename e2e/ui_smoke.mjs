@@ -29,6 +29,8 @@ globalThis.fetch = async (url, init = {}) => {
     return json({ backend: { ok: true, version: "2" }, python: { ok: true, version: "3" }, ffmpeg: { ok: true, version: "6.1-x" }, extractor: { ok: true, version: "2026.10.21" } });
   if (path.startsWith("/api/history")) return json({ items: [] });
   if (path === "/api/settings") return json({ output_directory: "X", allowed_source_domains: ["*"], universal_mode: true });
+  if (path === "/api/extension/pairing") return json({ code: "dd1.8000.KEYONE", port: 8000 });
+  if (path === "/api/extension/pairing/rotate") return json({ code: "dd1.8000.KEYTWO", port: 8000 });
   if (path === "/api/settings/cookies") return json({ has_cookies: false, size_bytes: 0 });
   if (path === "/api/jobs/batch")
     return json({
@@ -59,7 +61,7 @@ jobs = [
 assert.equal(queue.renderQueue(jobs), true, "reports active jobs");
 assert.equal($("queue-section").hidden, false);
 const items = [...$("queue-list").children];
-assert.equal(items.length, 4);
+assert.equal(items.length, 3, "finished downloads are shown in History, not here");
 assert.equal(items[0].querySelector(".queue-title").textContent, hostile, "title is plain text");
 assert.equal(window.__xss, undefined, "no markup injection");
 assert.match(items[0].querySelector(".queue-status").textContent, /42%.*left/);
@@ -67,7 +69,6 @@ assert.equal(items[2].dataset.state, "failed");
 const vis = (li, label) => [...li.querySelectorAll("button")].filter((b) => !b.hidden).map((b) => b.textContent).includes(label);
 assert.ok(vis(items[0], "Cancel") && !vis(items[0], "Retry"));
 assert.ok(vis(items[2], "Retry") && vis(items[2], "Dismiss") && !vis(items[2], "Cancel"));
-assert.ok(vis(items[3], "Open"));
 
 // rows are reused (not recreated) and removed when gone
 const firstNode = items[0];
@@ -113,7 +114,7 @@ assert.equal(input.value, "https://b.example/2", "only the failed link stays for
 
 // invalid link in a batch is rejected locally, nothing sent
 const before = calls.filter((c) => c.path === "/api/jobs/batch").length;
-input.value = "https://a.example/1 not-a-link";
+input.value = "https://a.example/1 https://b.example/2 http://[bad";
 input.dispatchEvent(new window.Event("input"));
 $("url-form").dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
 await wait(50);
@@ -129,6 +130,21 @@ $("extractor-update-button").click();
 await wait(60);
 assert.match($("extractor-update-message").textContent, /Updated/);
 assert.equal($("extractor-update-button").hidden, true);
+
+// ---- browser extension pairing ---------------------------------------------
+globalThis.requestAnimationFrame = (fn) => setTimeout(fn, 0);
+window.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+window.HTMLDialogElement.prototype.close = function () { this.open = false; };
+$("menu-toggle").click();
+$("open-settings").click();
+await wait(80);
+assert.equal($("extension-settings").hidden, false, "extension block shown on desktop");
+assert.equal($("extension-code").value, "dd1.8000.KEYONE");
+assert.equal($("extension-code").type, "password", "code is hidden by default");
+$("extension-rotate").click();
+await wait(60);
+assert.equal($("extension-code").value, "dd1.8000.KEYTWO");
+assert.match($("extension-message").textContent, /New code/);
 
 console.log("UI smoke test: all assertions passed");
 process.exit(0);

@@ -29,3 +29,7 @@ and checks the page: engine calls, polling, shared links being queued, the Andro
 ```bash
 node e2e/android_smoke.mjs
 ```
+
+## Extension logic tests
+
+`node extension/test.mjs` checks pairing-code parsing, link filtering, limits and error messages with a fake browser API.

@@ -3,8 +3,10 @@
     <style name="Theme.DigitalDownloader" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="colorPrimary">@color/primary</item>
         <item name="colorPrimaryDark">@color/primary_dark</item>
-        <item name="colorAccent">@color/primary</item>
-        <item name="android:statusBarColor">@color/surface_light</item>
-        <item name="android:windowLightStatusBar">true</item>
+        <item name="colorAccent">@color/gold</item>
+        <item name="android:windowBackground">@color/surface_dark</item>
+        <item name="android:statusBarColor">@color/primary_dark</item>
+        <item name="android:navigationBarColor">@color/primary_dark</item>
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>

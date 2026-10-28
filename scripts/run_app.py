@@ -117,9 +117,55 @@ def launch_native_desktop_window(port: int) -> None:
     webbrowser.open(url)
 
 
+def _report(text: str) -> None:
+    print(text)
+    out = os.environ.get("SELFTEST_OUT")
+    if out:  # the packaged app has no console, so the build reads the result from a file
+        Path(out).write_text(text + "\n", encoding="utf-8")
+
+
+def selftest(port: int) -> int:
+    """Start the server without a window, check it answers and exit. Used by the build to prove the package works."""
+    import urllib.request
+
+    app = create_app()
+    threading.Thread(
+        target=uvicorn.run, args=(app,), kwargs={"host": "127.0.0.1", "port": port, "log_level": "warning"}, daemon=True
+    ).start()
+    if not wait_for_server(port, 30.0):
+        _report("SELFTEST FAIL: server did not start")
+        return 1
+    problems = []
+    with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=5) as resp:
+        page = resp.read().decode("utf-8", "replace")
+        if "Digital Downloader" not in page or "__SESSION_TOKEN__" in page:
+            problems.append("home page not served correctly")
+    with urllib.request.urlopen(f"http://127.0.0.1:{port}/static/css/fonts.css", timeout=5) as resp:
+        pass
+    from backend.app.api.routes.extension import extension_directory
+
+    if extension_directory() is None:
+        problems.append("extension folder missing")
+    if not os.environ.get("FFMPEG_PATH"):
+        problems.append("ffmpeg not found")
+    if problems:
+        _report("SELFTEST FAIL: " + "; ".join(problems))
+        return 1
+    _report("SELFTEST OK")
+    return 0
+
+
 def main() -> None:
     port = int(os.environ.get("PORT", "8000"))
     bind_host = "127.0.0.1"
+
+    if "--selftest" in sys.argv:
+        sys.exit(selftest(port))
+
+    # Second launch (e.g. a double-click on the shortcut): reuse the running app instead of failing on the busy port.
+    if wait_for_server(port, 0.6):
+        launch_native_desktop_window(port)
+        sys.exit(0)
 
     try:
         print("=" * 60)

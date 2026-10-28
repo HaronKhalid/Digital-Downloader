@@ -2,6 +2,7 @@
 // Rows are updated in place (keyed by job id) so buttons keep focus while progress changes.
 // All text is assigned with textContent; remote titles can never inject markup.
 import { api, ApiError } from "./api.js";
+import { state } from "./state.js";
 import { formatEta, formatSize, formatSpeed } from "./format.js";
 import { els, showNotice } from "./ui.js";
 
@@ -132,7 +133,12 @@ export function renderQueue(jobs) {
     }
   }
   firstRender = false;
-  const visible = jobs.filter((job) => !dismissed.has(job.job_id));
+  // The download you are watching in the big card is not repeated in the list below.
+  const watchedId = els.panel && !els.panel.hidden ? state.lastJobId : null;
+  // Finished downloads live in "Download History"; this list is only for work in progress or needing attention.
+  const visible = jobs.filter(
+    (job) => job.status !== "completed" && !dismissed.has(job.job_id) && job.job_id !== watchedId,
+  );
   els.queueSection.hidden = visible.length === 0;
   const seen = new Set();
   let previous = null;

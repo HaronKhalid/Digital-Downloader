@@ -2,15 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="light dark">
   <meta name="session-token" content="__SESSION_TOKEN__">
   <title>Digital Downloader — Paste any link, get your file</title>
   <link rel="icon" type="image/png" href="/static/img/icon.png">
   <link rel="apple-touch-icon" href="/static/img/icon.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Montserrat:ital,wght@0,600;0,700;0,800;0,900;1,600;1,700;1,800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/fonts.css">
   <link rel="stylesheet" href="/static/css/main.css">
   <link rel="stylesheet" href="/static/css/components.css">
   <link rel="stylesheet" href="/static/css/responsive.css">
@@ -48,7 +46,8 @@
   <aside class="menu-drawer" id="menu-drawer" aria-label="Application Menu" hidden>
     <div class="menu-drawer-header">
       <div class="menu-drawer-title">
-        <img src="/static/img/icon.png" class="menu-logo" alt="" width="22" height="22">
+        <img src="/static/img/logo-dark.png" class="menu-logo brand-logo logo-dark" alt="" width="22" height="22">
+        <img src="/static/img/logo-light.png" class="menu-logo brand-logo logo-light" alt="" width="22" height="22">
         <span>Digital Downloader</span>
       </div>
       <button type="button" class="icon-button" id="menu-close" aria-label="Close menu" title="Close menu">
@@ -135,7 +134,7 @@
     </div>
 
     <div class="menu-drawer-footer">
-      <span>v2.0.0</span>
+      <span id="app-version">v2.1.0</span>
       <span class="dot-sep">•</span>
       <span>Digital Takhleeq</span>
     </div>
@@ -364,8 +363,20 @@
           <input type="text" id="output-directory-input" autocomplete="off" spellcheck="false" placeholder="Default: Downloads folder">
           <button type="button" class="button primary small" id="save-settings-button">Save</button>
         </div>
-        <p class="field-hint" style="margin-top: 0.35rem; font-size: 0.8rem; color: var(--color-text-muted);">Supports paths like <code>downloads\Music</code>, <code>~/Downloads</code>, or custom folders.</p>
+        <p class="field-hint field-hint-tight">Supports paths like <code>downloads\Music</code>, <code>~/Downloads</code>, or custom folders.</p>
         <p class="field-hint" id="settings-save-message" role="status" aria-live="polite"></p>
+      </div>
+
+      <div class="field setting-field" id="extension-settings" hidden>
+        <label for="extension-code">Browser extension</label>
+        <p class="field-hint">Install the extension from the <strong>extension</strong> folder, then paste this code into it once. Keep the code private: anyone who has it can add downloads to this app.</p>
+        <input id="extension-code" type="password" readonly autocomplete="off" spellcheck="false">
+        <div class="cookies-actions">
+          <button type="button" id="extension-copy" class="button quiet small">Copy code</button>
+          <button type="button" id="extension-rotate" class="button quiet small">Make a new code</button>
+          <button type="button" id="extension-folder" class="button quiet small">Open extension folder</button>
+        </div>
+        <p class="field-hint" id="extension-message" role="status" aria-live="polite"></p>
       </div>
 
       <div class="field setting-field" id="android-share-settings" hidden>
@@ -374,7 +385,7 @@
           <option value="background">Download in the background (recommended)</option>
           <option value="open">Open the app so I can choose the quality</option>
         </select>
-        <label for="share-quality-select" style="margin-top: 0.6rem;">Background downloads save as</label>
+        <label for="share-quality-select" class="label-spaced">Background downloads save as</label>
         <select id="share-quality-select">
           <option value="best">Video (best quality that plays everywhere)</option>
           <option value="audio">Audio only</option>
@@ -391,9 +402,9 @@
         </select>
       </div>
 
-      <details class="setting-details" style="margin: 0.75rem 0;">
-        <summary style="font-size: 0.85rem; color: var(--color-text-muted); cursor: pointer; user-select: none;">Website Cookies (Optional for restricted media)</summary>
-        <div class="field setting-field cookies-field" style="margin-top: 0.75rem;">
+      <details class="setting-details">
+        <summary class="setting-summary">Website Cookies (Optional for restricted media)</summary>
+        <div class="field setting-field cookies-field">
           <div class="cookies-head">
             <label>Browser Cookies (.txt)</label>
             <span id="cookies-status-badge" class="badge">No cookies</span>
@@ -407,7 +418,7 @@
             <button type="button" class="button quiet small" id="paste-cookies-button">Paste text</button>
             <button type="button" class="button quiet small danger" id="clear-cookies-button" hidden>Remove</button>
           </div>
-          <div id="cookies-paste-box" hidden style="margin-top: 0.5rem;">
+          <div id="cookies-paste-box" class="cookies-paste-box" hidden>
             <textarea id="cookies-textarea" placeholder="# Netscape HTTP Cookie File&#10;.instagram.com&#9;TRUE&#9;/&#9;TRUE&#9;..." rows="4"></textarea>
             <div class="cookies-box-actions">
               <button type="button" class="button primary small" id="save-cookies-text-button">Save Cookies</button>

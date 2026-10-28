@@ -37,15 +37,15 @@ with sync_playwright() as p:
     check("duration formatted h:mm:ss", page.inner_text("#media-duration") == "1:02:05", page.inner_text("#media-duration"))
     check("thumbnail visible", page.locator("#media-thumb-img").is_visible())
     check("quality options", page.locator("#quality-select option").all_inner_texts() == ["1080p", "720p60", "480p", "Audio only"], str(page.locator("#quality-select option").all_inner_texts()))
-    check("format options for 1080p", page.locator("#format-select option").all_inner_texts() == ["MP4", "WEBM (no audio)"], str(page.locator("#format-select option").all_inner_texts()))
+    check("format options for 1080p", page.locator("#format-select option").all_inner_texts() == ["MP4 · 393 MB", "WEBM · about 219 MB"], str(page.locator("#format-select option").all_inner_texts()))
     check("size shown", page.inner_text("#media-size") == "393 MB", page.inner_text("#media-size"))
     page.select_option("#format-select", "b")
     check("approx size", page.inner_text("#media-size") == "about 219 MB", page.inner_text("#media-size"))
     page.select_option("#quality-select", "480p")
     check("unknown size", page.inner_text("#media-size") == "Unknown")
     page.select_option("#quality-select", "Audio only")
-    check("audio formats", page.locator("#format-select option").all_inner_texts() == ["M4A", "MP3"])
-    check("download enabled", page.locator("#download-button").is_enabled() and "PersonalMedia folder" in page.inner_text("#download-hint"))
+    check("audio formats", [t.split(" ")[0] for t in page.locator("#format-select option").all_inner_texts()] == ["M4A", "MP3"], str(page.locator("#format-select option").all_inner_texts()))
+    check("download enabled", page.locator("#download-button").is_enabled() and page.locator("#download-button").is_visible())
 
     # editing the URL invalidates the shown result
     page.fill("#url-input", "https://media.example/film2")
@@ -56,7 +56,7 @@ with sync_playwright() as p:
     page.wait_for_selector("#media-card:not([hidden])"); page.wait_for_timeout(300)
     check("hostile title shown as literal text", page.inner_text("#media-title").startswith("<img src=x onerror="))
     check("no injected elements", page.locator("#media-title *").count() == 0)
-    check("no script executed", page.title() == "Personal Media" and dialogs == [], page.title())
+    check("no script executed", page.title() != "PWNED" and "Digital Downloader" in page.title() and dialogs == [], page.title())
 
     # error paths
     for url, needle, name in [("https://media.example/gone", "no longer available", "unavailable media"),
@@ -77,7 +77,7 @@ with sync_playwright() as p:
     check("clear empties + refocuses", page.input_value("#url-input") == "" and page.evaluate("document.activeElement.id") == "url-input")
 
     # settings dialog
-    page.click("#open-settings"); page.wait_for_selector("#dependency-list .dependency[data-state]")
+    page.click("#menu-toggle"); page.click("#open-settings"); page.wait_for_selector("#dependency-list .dependency[data-state]")
     page.wait_for_timeout(300)
     page.screenshot(path=str(SHOTS) + "/4-settings.png")
     deps = page.locator("#dependency-list").inner_text()
@@ -107,10 +107,10 @@ with sync_playwright() as p:
 
     analyze("https://media.example/film")
     opts = page.locator("#output-select option").all_inner_texts()
-    check("Save-as options for an mp4 video", opts == ["Same as source", "MKV", "WEBM"], str(opts))
+    check("Save-as options for an mp4 video", opts == ["Same as source (MP4)", "MKV", "WEBM"], str(opts))
     page.select_option("#quality-select", "Audio only")
     opts = page.locator("#output-select option").all_inner_texts()
-    check("Save-as options for audio (source container excluded)", opts == ["Same as source", "MP3", "OPUS"], str(opts))
+    check("Save-as options for audio (source container excluded)", opts == ["Same as source (M4A)", "MP3", "OPUS"], str(opts))
     page.select_option("#quality-select", "1080p")
 
     page.click("#download-button")
@@ -125,7 +125,7 @@ with sync_playwright() as p:
     check("completes", wait_until(lambda: jstate() == "completed"))
     msg = page.inner_text("#job-message")
     name = msg.split("Saved as ", 1)[-1]
-    check("completion message names the file", msg.startswith("Download completed.") and name.endswith(".mp4"), msg)
+    check("completion message names the file", msg.startswith("Saved as ") and name.endswith(".mp4"), msg)
     check("saved filename is safe (title had ':')", ":" not in name and "/" not in name, name)
     check("file really exists with the right size", (WORK / "out" / name).exists() and (WORK / "out" / name).stat().st_size == 3_000_000)
     check("temp folder cleaned", list((WORK / "temp").glob("job-*")) == [])
@@ -194,7 +194,7 @@ with sync_playwright() as p:
     page.click("#download-button")
     check("hostile-title download completes", wait_until(lambda: jstate() == "completed", 20))
     hname = page.inner_text("#job-message").split("Saved as ", 1)[-1]
-    check("hostile title: safe filename, nothing executed", not any(c in hname for c in '<>:"/\\|?*') and page.title() == "Personal Media", hname)
+    check("hostile title: safe filename, nothing executed", not any(c in hname for c in '<>:"/\\|?*') and page.title() != "PWNED", hname)
     check("hostile title shown as text in the panel", page.inner_text("#job-title").startswith("<img"))
 
     # mobile

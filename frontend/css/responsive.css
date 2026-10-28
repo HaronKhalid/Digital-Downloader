@@ -118,3 +118,43 @@
     padding: 1.25rem;
   }
 }
+
+/* ------------------------------------------------------------------ Phone fixes */
+.app-layout > *,
+.app-left > * {
+  min-width: 0;
+}
+
+@media (max-width: 960px) {
+  /* Order on small screens: title + input, then the chosen media / progress card, then the queue, then history. */
+  .queue {
+    order: 3;
+    width: 100%;
+    margin-top: 0;
+  }
+
+  .history {
+    order: 4;
+  }
+}
+
+@media (max-width: 600px) {
+  html,
+  body {
+    overflow-x: hidden;
+  }
+}
+
+/* Keep content clear of the notch, status bar and gesture bar on phones */
+.topbar {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+}
+
+.page {
+  padding-left: max(clamp(1rem, 4vw, 4.5rem), env(safe-area-inset-left));
+  padding-right: max(clamp(1rem, 4vw, 4.5rem), env(safe-area-inset-right));
+}
+
+.footer {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
